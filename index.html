@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Honey Homes · Task Booking Planner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Serif+4:wght@400;600&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --dark-teal:#014044;--teal:#19949E;--bright-teal:#1CACB8;
+  --muted-teal:#14747C;--darkest-teal:#003336;
+  --tan:#F9F6F4;--blue-tint:#EBF4F5;
+  --gray:#6A7677;--light-gray:#9BA7A8;
+  --blue:#C0E4EA;--yellow:#FDC30F;--pink:#F281AB;--red:#D44027;
+  --white:#FFFFFF;--off-white:#FAFBFB;
+  --font:'Source Sans 3',sans-serif;
+  --serif:'Source Serif 4',Georgia,serif;
+}
+body{background:var(--tan);color:var(--dark-teal);font-family:var(--font);min-height:100vh;-webkit-font-smoothing:antialiased}
+button{font-family:var(--font);cursor:pointer;border:none;background:none}
+select,input{font-family:var(--font)}
+::selection{background:var(--bright-teal);color:#fff}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--light-gray);border-radius:3px}
+
+.header{background:var(--white);border-bottom:1px solid #E8EDEE;padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-left{display:flex;align-items:center;gap:14px}
+.logo-icon svg{width:36px;height:36px}
+.logo-text{font-size:20px;font-weight:700;color:var(--teal);letter-spacing:-0.01em}
+.logo-sub{font-size:10px;font-weight:600;color:var(--muted-teal);letter-spacing:0.12em;text-transform:uppercase;margin-left:12px;padding-left:12px;border-left:1px solid #D4E0E1}
+.header-right{display:flex;gap:8px;align-items:center}
+.hdr-btn{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;color:var(--muted-teal);transition:all 0.15s;border:1px solid transparent}
+.hdr-btn:hover{background:var(--blue-tint)}
+.hdr-btn.active{background:var(--teal);color:#fff}
+.hdr-btn.outline{border:1px solid #D4E0E1}
+
+.progress-bar{display:flex;background:var(--white);border-bottom:1px solid #E8EDEE;padding:0 32px}
+.prog-step{flex:1;padding:10px 0;text-align:center;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--light-gray);border-bottom:2.5px solid transparent;transition:all 0.2s}
+.prog-step.active{color:var(--teal);border-bottom-color:var(--teal)}
+.prog-step.done{color:var(--bright-teal)}
+
+.container{max-width:1140px;margin:0 auto;padding:24px 24px 100px}
+.page-title{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--darkest-teal);margin-bottom:4px}
+.page-desc{font-size:14px;color:var(--gray)}
+
+.filters-bar{display:flex;gap:10px;margin:18px 0 16px;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:220px;padding:9px 14px 9px 36px;border-radius:8px;border:1px solid #D4E0E1;background:var(--white);color:var(--dark-teal);font-size:13px;outline:none;transition:border-color 0.15s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239BA7A8' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 00-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 005.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:10px center}
+.search-input:focus{border-color:var(--teal)}
+.filter-select{padding:8px 12px;border-radius:8px;border:1px solid #D4E0E1;background:var(--white);color:var(--dark-teal);font-size:12px;font-weight:500;outline:none;min-width:130px;cursor:pointer}
+.filter-pill{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid #D4E0E1;background:var(--white);color:var(--gray);transition:all 0.15s;cursor:pointer}
+.filter-pill.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.count-label{font-size:12px;color:var(--light-gray);font-weight:600;margin-bottom:10px}
+
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.home-card{padding:18px;border-radius:12px;border:1px solid #E0E7E8;background:var(--white);cursor:pointer;transition:all 0.18s;box-shadow:0 1px 3px rgba(0,51,54,0.04)}
+.home-card:hover{border-color:var(--bright-teal);box-shadow:0 4px 12px rgba(25,148,158,0.1);transform:translateY(-1px)}
+.home-card.disabled{opacity:0.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.home-card.disabled:hover{border-color:#E0E7E8}
+.card-addr{font-size:15px;font-weight:700;color:var(--darkest-teal)}
+.card-city{font-size:11px;color:var(--gray);margin-top:1px}
+.card-meta{font-size:11px;color:var(--muted-teal);margin:8px 0;font-weight:500}
+
+.badge{display:inline-block;font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700;letter-spacing:0.02em}
+.badge-count{background:var(--blue-tint);color:var(--teal)}
+.badge-todo{background:#FEF9E7;color:#856404}
+.badge-ip{background:#E3F4F5;color:var(--muted-teal)}
+.badge-est{background:var(--blue);color:var(--dark-teal);font-weight:600}
+.badge-day{background:var(--teal);color:#fff}
+.task-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot-todo{background:var(--yellow)}
+.dot-ip{background:var(--bright-teal)}
+
+.panel{background:var(--white);border-radius:12px;border:1px solid #E0E7E8;padding:20px;box-shadow:0 1px 3px rgba(0,51,54,0.04)}
+.panel h3{font-size:15px;font-weight:700;color:var(--darkest-teal);margin-bottom:14px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:860px){.two-col{grid-template-columns:1fr}.card-grid{grid-template-columns:1fr}}
+
+.task-list{max-height:460px;overflow-y:auto;padding-right:4px}
+.task-item{padding:12px 14px;border-radius:8px;border:1px solid #E8EDEE;margin-bottom:8px;cursor:pointer;transition:all 0.12s;background:var(--white)}
+.task-item:hover{border-color:var(--bright-teal)}
+.task-item.selected{border-color:var(--teal);background:var(--blue-tint)}
+.task-title{font-size:13px;font-weight:600;color:var(--darkest-teal)}
+.task-desc{font-size:11px;color:var(--gray);margin-top:3px;line-height:1.4}
+.task-est{font-size:10px;color:var(--muted-teal);font-weight:600;margin-top:4px}
+.chk{width:18px;height:18px;border-radius:5px;border:2px solid #C5CDCE;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.12s}
+.chk.on{border-color:var(--teal);background:var(--teal)}
+.chk.on::after{content:'✓';color:#fff;font-size:11px;font-weight:700}
+
+.day-btn{padding:9px 16px;border-radius:8px;border:1px solid #D4E0E1;background:var(--white);color:var(--gray);font-size:12px;font-weight:600;transition:all 0.12s}
+.day-btn.active{border-color:var(--teal);background:var(--teal);color:#fff}
+.mode-btn{flex:1;padding:12px 14px;border-radius:8px;border:1px solid #D4E0E1;background:var(--white);color:var(--gray);text-align:left;transition:all 0.12s}
+.mode-btn.active{border-color:var(--teal);background:var(--blue-tint);color:var(--darkest-teal)}
+.mode-label{font-size:12px;font-weight:600}
+.mode-sub{font-size:10px;opacity:0.7;margin-top:2px}
+
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-card{background:var(--tan);border-radius:8px;padding:14px;text-align:center}
+.stat-val{font-size:26px;font-weight:700}
+.stat-label{font-size:10px;color:var(--gray);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em}
+
+.btn-primary{width:100%;padding:13px 0;border-radius:10px;border:none;background:var(--teal);color:#fff;font-size:14px;font-weight:700;transition:all 0.15s;letter-spacing:-0.01em}
+.btn-primary:hover{background:var(--muted-teal)}
+.btn-primary:disabled{background:#C5CDCE;color:var(--white);cursor:not-allowed}
+.btn-primary.success{background:#0a8a5e}
+.btn-primary.success:hover{background:#077a52}
+.btn-outline{background:transparent;color:var(--muted-teal);border:1px solid #D4E0E1;font-weight:600}
+.btn-outline:hover{background:var(--blue-tint)}
+
+.plan-day{background:var(--white);border-radius:12px;border:1px solid #E0E7E8;padding:20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,51,54,0.04)}
+.plan-day h3{font-size:16px;font-weight:700;color:var(--darkest-teal)}
+.visit-row{display:flex;gap:16px;padding:12px 14px;border-radius:8px;background:var(--tan);border:1px solid #E8EDEE;margin-bottom:8px}
+.visit-time{min-width:115px;flex-shrink:0}
+.vt-start{font-size:13px;font-weight:700;color:var(--teal);letter-spacing:-0.01em}
+.vt-end{font-size:11px;color:var(--gray)}
+.visit-tasks{border-left:2px solid var(--bright-teal);padding-left:14px;flex:1}
+.confirm-circle{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--bright-teal));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:34px;color:#fff}
+.warning-box{padding:12px 18px;border-radius:10px;background:#FFF8E1;border:1px solid #FDC30F44;margin-bottom:18px;font-size:12px;color:#856404;font-weight:500}
+
+.week-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:8px;border:1px solid #E8EDEE;margin-bottom:6px;cursor:pointer;background:var(--white);transition:all 0.12s;font-size:12px}
+.week-row:hover{border-color:var(--bright-teal)}
+.week-row.selected{border-color:var(--teal);background:var(--blue-tint)}
+.week-label{font-weight:600;color:var(--darkest-teal)}
+.week-slots{color:var(--gray);font-size:11px}
+.month-pill{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid #D4E0E1;background:var(--white);color:var(--gray);cursor:pointer;transition:all 0.12s}
+.month-pill.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.date-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:8px;border:1px solid #E8EDEE;margin-bottom:6px;font-size:13px;background:var(--white);transition:all 0.12s}
+.date-item:hover{border-color:var(--bright-teal)}
+.booked-entry{padding:14px;background:var(--tan);border-radius:8px;margin-bottom:10px;border:1px solid #E0E7E8}
+.booked-entry strong{color:var(--teal)}
+
+/* ── UPLOAD PAGE ── */
+.upload-page{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 64px);padding:40px 24px}
+.upload-container{max-width:680px;width:100%;text-align:center}
+.upload-hero-icon{margin:0 auto 24px}
+.upload-hero-icon svg{width:72px;height:72px}
+.upload-title{font-family:var(--serif);font-size:32px;font-weight:600;color:var(--darkest-teal);margin-bottom:8px}
+.upload-desc{font-size:15px;color:var(--gray);margin-bottom:36px;line-height:1.5}
+.upload-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px}
+.upload-card{background:var(--white);border:2px dashed #D4E0E1;border-radius:14px;padding:28px 20px;text-align:center;transition:all 0.2s;position:relative;cursor:pointer}
+.upload-card:hover{border-color:var(--bright-teal);background:var(--blue-tint)}
+.upload-card.loaded{border:2px solid var(--teal);background:var(--blue-tint)}
+.upload-card.error{border:2px solid var(--red);background:#FEF2F0}
+.upload-card input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-card-icon{font-size:36px;margin-bottom:12px}
+.upload-card-title{font-size:14px;font-weight:700;color:var(--darkest-teal);margin-bottom:4px}
+.upload-card-desc{font-size:11px;color:var(--gray);line-height:1.4}
+.upload-card-status{font-size:12px;font-weight:600;margin-top:10px}
+.upload-card-status.ok{color:var(--teal)}
+.upload-card-status.err{color:var(--red)}
+.upload-card-file{font-size:10px;color:var(--light-gray);margin-top:4px;word-break:break-all}
+
+.upload-go{margin-top:8px;padding:15px 48px;border-radius:10px;border:none;background:var(--teal);color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.15s;display:inline-block}
+.upload-go:hover{background:var(--muted-teal)}
+.upload-go:disabled{background:#C5CDCE;cursor:not-allowed}
+.upload-hint{margin-top:20px;font-size:12px;color:var(--light-gray);line-height:1.5}
+.upload-or{font-size:12px;color:var(--light-gray);margin:20px 0;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;display:flex;align-items:center;gap:12px}
+.upload-or::before,.upload-or::after{content:'';flex:1;height:1px;background:#D4E0E1}
+.demo-link{color:var(--teal);font-weight:600;cursor:pointer;text-decoration:underline;font-size:13px}
+.demo-link:hover{color:var(--muted-teal)}
+
+.loading-overlay{position:fixed;inset:0;background:rgba(249,246,244,0.92);display:flex;align-items:center;justify-content:center;z-index:200;flex-direction:column;gap:16px}
+.spinner{width:40px;height:40px;border:3px solid #E0E7E8;border-top:3px solid var(--teal);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn 0.25s ease-out}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ═══════════════════════════════════════════════════════
+   HONEY HOMES TASK BOOKING PLANNER — MAIN JS
+   ═══════════════════════════════════════════════════════ */
+
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const VISIT_H=1.75;
+
+const LOGO=`<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M20 4L4 18h4v16h24V18h4L20 4z" stroke="#19949E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M16 26c0 2.2 1.8 4 4 4s4-1.8 4-4" stroke="#19949E" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+</svg>`;
+
+/* ── GLOBAL DATA ── */
+let HOMES=[], SCHEDULE={}, HANDYMEN=[], MANAGERS=[], DATE_RANGE=['',''];
+
+/* ── STATE ── */
+const S={
+  step:'upload', // upload | select | preferences | results | summary
+  // upload state
+  tasksFile:null, schedFile:null, tasksOk:false, schedOk:false,
+  tasksFname:'', schedFname:'', tasksErr:'', schedErr:'',
+  tasksRows:0, schedRows:0, loading:false,
+  // app state
+  home:null, tasks:new Set(), prefDays:new Set(DAYS),
+  prefStart:'08:30', prefEnd:'17:00', mode:'auto',
+  plan:null, search:'', filterStatus:'all',
+  filterHandyman:'', filterManager:'',
+  filterMonth:'', filterDateFrom:'', filterDateTo:'',
+  booked:[], showBooked:false, selectedWeek:'',
+};
+
+/* ── HELPERS ── */
+function fmt(hhmm){const[h,m]=hhmm.split(':').map(Number);const a=h>=12?'PM':'AM';return`${h>12?h-12:h===0?12:h}:${String(m).padStart(2,'0')} ${a}`}
+function esc(s,fa){if(!s)return'';s=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');if(fa)s=s.replace(/'/g,"\\\\'").replace(/"/g,'&quot;');return s}
+function dateLabel(ds){return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}
+function dateLabelFull(ds){return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
+function getWeekOf(ds){const d=new Date(ds+'T12:00:00');const day=d.getDay();const mon=new Date(d);mon.setDate(d.getDate()-(day===0?6:day-1));return mon.toISOString().split('T')[0]}
+function getMonth(ds){return ds.substring(0,7)}
+function monthLabel(ym){const[y,m]=ym.split('-');return new Date(Number(y),Number(m)-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'})}
+
+/* ── TIME ESTIMATION ── */
+function estimateMinutes(title,desc){
+  const t=(title+' '+(desc||'')).toLowerCase();
+  if(/\b(replac|install)\b.*\b(toilet|water heater|dishwasher|garbage disposal|faucet|fixture)\b/.test(t))return 120;
+  if(/\bpaint\b.*\b(room|wall|ceiling|exterior|interior|house|cabinet)\b/.test(t))return 150;
+  if(/\bpaint\b.*\b(patch|touch|spot)\b/.test(t))return 45;
+  if(/\bpaint\b/.test(t))return 60;
+  if(/\b(drywall|sheetrock)\b.*\b(repair|patch|hole)\b/.test(t))return 60;
+  if(/\b(replace|install|fix)\b.*\b(door|screen door)\b/.test(t))return 90;
+  if(/\bdoor\b.*\b(adjust|align|sticks|pops|latch|knob|handle|lock)\b/.test(t))return 30;
+  if(/\bdoor\b/.test(t))return 45;
+  if(/\b(leak|leaking|drip)\b/.test(t))return 60;
+  if(/\b(caulk|grout|seal)\b/.test(t))return 40;
+  if(/\btile\b.*\b(replace|repair|fix|crack|broken)\b/.test(t))return 75;
+  if(/\bfence\b.*\b(replace|repair|fix|build|install)\b/.test(t))return 120;
+  if(/\bfence\b/.test(t))return 60;
+  if(/\b(electrical|outlet|switch|fixture|fan|ceiling fan)\b.*\b(install|replace|wire)\b/.test(t))return 60;
+  if(/\b(light|bulb|lamp)\b.*\b(replace|change|fix)\b/.test(t))return 20;
+  if(/\b(light|outlet|switch)\b/.test(t))return 35;
+  if(/\b(plumb|pipe|drain|clog|unclog|snake)\b/.test(t))return 60;
+  if(/\btoilet\b.*\b(run|flapper|handle|seat|loose)\b/.test(t))return 25;
+  if(/\btoilet\b/.test(t))return 45;
+  if(/\bwindow\b.*\b(replace|install)\b/.test(t))return 90;
+  if(/\bwindow\b.*\b(screen|lock|latch|crank|seal)\b/.test(t))return 30;
+  if(/\bwindow\b/.test(t))return 40;
+  if(/\b(cabinet|drawer|shelf)\b.*\b(install|mount|build|assemble)\b/.test(t))return 60;
+  if(/\b(cabinet|drawer)\b.*\b(fix|adjust|door|hinge|knob)\b/.test(t))return 25;
+  if(/\b(hang|mount|install)\b.*\b(tv|mirror|shelf|art|picture|curtain|rod|blind|shade)\b/.test(t))return 35;
+  if(/\b(gutter|downspout)\b/.test(t))return 60;
+  if(/\b(deck|patio)\b.*\b(repair|replace|stain|seal)\b/.test(t))return 120;
+  if(/\b(garage)\b.*\b(door|opener)\b/.test(t))return 60;
+  if(/\b(insulation|weather.?strip)\b/.test(t))return 45;
+  if(/\b(pressure wash|power wash)\b/.test(t))return 90;
+  if(/\b(assemble|assembly)\b/.test(t))return 60;
+  if(/\b(smoke|co|carbon|detector|alarm)\b/.test(t))return 15;
+  if(/\bthermostat\b/.test(t))return 30;
+  if(/\bclean\b/.test(t))return 30;
+  if(/\b(inspect|check|assess|diagnose|evaluate|quote)\b/.test(t))return 20;
+  if(/\b(tighten|adjust|lubricate|oil)\b/.test(t))return 15;
+  if(/\b(replace|fix|repair)\b/.test(t))return 45;
+  return 35;
+}
+function fmtEst(m){if(m<60)return m+'min';const h=Math.floor(m/60),r=m%60;return r?`${h}h ${r}min`:`${h}h`}
+
+/* ═══════════════════════════════════════════════════════
+   CSV PARSING
+   ═══════════════════════════════════════════════════════ */
+function parseTasksCSV(csvText){
+  const result = Papa.parse(csvText, {header:true, skipEmptyLines:true});
+  if(result.errors.length>3) throw new Error('CSV has too many parsing errors');
+  const rows = result.data;
+  if(!rows.length) throw new Error('No data rows found');
+
+  // Detect column names flexibly
+  const cols = Object.keys(rows[0]);
+  const find = (patterns) => cols.find(c => patterns.some(p => c.toLowerCase().includes(p.toLowerCase())));
+
+  const cAddr = find(['StreetAddress','street','address']) || cols[2];
+  const cCity = find(['City']) || '';
+  const cZip = find(['ZipCode','zip']) || '';
+  const cTitle = find(['Title']) || cols[3];
+  const cDesc = find(['Description']) || '';
+  const cStatus = find(['Status']) || '';
+  const cHandyman = find(['Handyman Name','Handyperson']) || cols[0];
+  const cManager = find(['Manager Name','Manager']) || cols[1];
+  const cPriority = find(['PriorityLevel','Priority']) || '';
+  const cActive = find(['ActiveMember','Active']) || '';
+
+  const homes = {};
+  const seen = new Set();
+  let count = 0;
+
+  for(const row of rows){
+    const status = (row[cStatus]||'').trim();
+    if(status !== 'todo' && status !== 'inProgress') continue;
+    if(cActive && row[cActive] && row[cActive].trim() === 'false') continue;
+
+    const addr = (row[cAddr]||'').trim();
+    const title = (row[cTitle]||'').trim();
+    if(!addr || !title) continue;
+
+    const key = addr+'|||'+title;
+    if(seen.has(key)) continue;
+    seen.add(key);
+    count++;
+
+    if(!homes[addr]){
+      homes[addr] = {
+        address: addr,
+        city: cCity ? (row[cCity]||'').trim() : '',
+        zip: cZip ? (row[cZip]||'').trim() : '',
+        handyman: (row[cHandyman]||'').trim(),
+        manager: (row[cManager]||'').trim(),
+        tasks: []
+      };
+    }
+    homes[addr].tasks.push({
+      title,
+      description: cDesc ? (row[cDesc]||'').trim().substring(0,200) : '',
+      status,
+      priority: cPriority ? (parseInt(row[cPriority])||0) : 0,
+    });
+  }
+
+  const homesList = Object.values(homes).sort((a,b)=>b.tasks.length-a.tasks.length);
+  if(!homesList.length) throw new Error('No active todo/inProgress tasks found');
+  return {homes: homesList, taskCount: count};
+}
+
+function parseScheduleCSV(csvText){
+  const result = Papa.parse(csvText, {header:true, skipEmptyLines:true});
+  if(result.errors.length>3) throw new Error('CSV has too many parsing errors');
+  const rows = result.data;
+  if(!rows.length) throw new Error('No data rows found');
+
+  const cols = Object.keys(rows[0]);
+  const find = (patterns) => cols.find(c => patterns.some(p => c.toLowerCase().includes(p.toLowerCase())));
+
+  const cHP = find(['Handyperson','Handyman']) || cols[0];
+  const cStart = find(['Start']) || cols[2];
+  const cEnd = find(['End']) || cols[3];
+
+  const schedule = {};
+  let count = 0;
+  const allDates = [];
+
+  // Date parsing patterns
+  const parseDT = (s) => {
+    s = (s||'').trim();
+    // "February 27, 2026, 8:30 AM"
+    const m = s.match(/^(\w+)\s+(\d+),\s*(\d{4}),?\s+(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if(m){
+      const months={january:0,february:1,march:2,april:3,may:4,june:5,july:6,august:7,september:8,october:9,november:10,december:11};
+      let hr=parseInt(m[4]);const mn=parseInt(m[5]);
+      if(m[6].toUpperCase()==='PM'&&hr<12)hr+=12;
+      if(m[6].toUpperCase()==='AM'&&hr===12)hr=0;
+      return new Date(parseInt(m[3]),months[m[1].toLowerCase()],parseInt(m[2]),hr,mn);
+    }
+    // Try standard Date parsing
+    const d=new Date(s);
+    if(!isNaN(d))return d;
+    return null;
+  };
+
+  for(const row of rows){
+    const hp = (row[cHP]||'').trim();
+    const startDT = parseDT(row[cStart]);
+    const endDT = parseDT(row[cEnd]);
+    if(!hp||!startDT||!endDT) continue;
+    if(startDT.getDay()===0||startDT.getDay()===6) continue; // weekends
+
+    const dateStr = startDT.toISOString().split('T')[0];
+    const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][startDT.getDay()];
+    const startHHMM = String(startDT.getHours()).padStart(2,'0')+':'+String(startDT.getMinutes()).padStart(2,'0');
+    const endHHMM = String(endDT.getHours()).padStart(2,'0')+':'+String(endDT.getMinutes()).padStart(2,'0');
+
+    if(!schedule[hp]) schedule[hp]={};
+    if(!schedule[hp][dateStr]) schedule[hp][dateStr]={dow, slots:[]};
+    schedule[hp][dateStr].slots.push([startHHMM, endHHMM]);
+    allDates.push(dateStr);
+    count++;
+  }
+
+  // Sort slots
+  for(const hp in schedule)
+    for(const dt in schedule[hp])
+      schedule[hp][dt].slots.sort((a,b)=>a[0].localeCompare(b[0]));
+
+  if(!count) throw new Error('No valid schedule entries found');
+  const minDate = allDates.sort()[0];
+  const maxDate = allDates[allDates.length-1];
+  return {schedule, slotCount:count, dateRange:[minDate, maxDate]};
+}
+
+function processData(){
+  HANDYMEN = [...new Set(HOMES.map(h=>h.handyman))].sort();
+  MANAGERS = [...new Set(HOMES.map(h=>h.manager))].sort();
+}
+
+/* ═══════════════════════════════════════════════════════
+   FILE HANDLING
+   ═══════════════════════════════════════════════════════ */
+function handleTasksFile(file){
+  S.tasksFname = file.name;
+  S.tasksOk = false;
+  S.tasksErr = '';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const res = parseTasksCSV(e.target.result);
+      HOMES = res.homes;
+      S.tasksOk = true;
+      S.tasksRows = res.taskCount;
+      processData();
+      R();
+    }catch(err){
+      S.tasksErr = err.message;
+      R();
+    }
+  };
+  reader.readAsText(file);
+}
+
+function handleSchedFile(file){
+  S.schedFname = file.name;
+  S.schedOk = false;
+  S.schedErr = '';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const res = parseScheduleCSV(e.target.result);
+      SCHEDULE = res.schedule;
+      DATE_RANGE = res.dateRange;
+      S.schedOk = true;
+      S.schedRows = res.slotCount;
+      R();
+    }catch(err){
+      S.schedErr = err.message;
+      R();
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════════════ */
+function R(){
+  const a=document.getElementById('app');
+  if(S.step==='upload'){
+    a.innerHTML=renderHeader()+`<div class="upload-page fade-in">${renderUpload()}</div>`;
+  } else {
+    a.innerHTML=renderHeader()+renderProgress()+'<div class="container fade-in">'+(S.showBooked?renderBookedPanel():'')+renderStep()+'</div>';
+  }
+  bindEvt();
+}
+
+function renderHeader(){
+  return `<header class="header">
+    <div class="header-left">
+      <div class="logo-icon">${LOGO}</div>
+      <span class="logo-text">Honey Homes</span>
+      <span class="logo-sub">Task Booking Planner</span>
+    </div>
+    <div class="header-right">
+      ${S.booked.length?`<button class="hdr-btn ${S.showBooked?'active':'outline'}" onclick="S.showBooked=!S.showBooked;R()">📋 Booked (${S.booked.length})</button>`:''}
+      ${S.step!=='upload'&&S.step!=='select'?`<button class="hdr-btn outline" onclick="goSelect()">← Back to Homes</button>`:''}
+      ${S.step!=='upload'?`<button class="hdr-btn outline" onclick="goUpload()">↑ New Data</button>`:''}
+    </div>
+  </header>`;
+}
+
+/* ── UPLOAD PAGE ── */
+function renderUpload(){
+  const bothOk = S.tasksOk && S.schedOk;
+  return `<div class="upload-container">
+    <div class="upload-hero-icon">${LOGO.replace(/width='36px' height='36px'/g,"width='72px' height='72px'").replace(/width:36px;height:36px/g,"width:72px;height:72px")}</div>
+    <h1 class="upload-title">Task Booking Planner</h1>
+    <p class="upload-desc">Upload your task and schedule CSV files to get started.<br>The planner will match open tasks with available handyman time slots.</p>
+
+    <div class="upload-cards">
+      <!-- Tasks CSV -->
+      <div class="upload-card ${S.tasksOk?'loaded':S.tasksErr?'error':''}">
+        <input type="file" accept=".csv" onchange="if(this.files[0])handleTasksFile(this.files[0])">
+        <div class="upload-card-icon">${S.tasksOk?'✅':'📋'}</div>
+        <div class="upload-card-title">Tasks Sheet</div>
+        <div class="upload-card-desc">CSV with task details: address, title, description, status, handyman, manager</div>
+        ${S.tasksOk?`<div class="upload-card-status ok">✓ ${S.tasksRows} tasks from ${HOMES.length} homes loaded</div>
+          <div class="upload-card-file">${esc(S.tasksFname)}</div>`
+          :S.tasksErr?`<div class="upload-card-status err">✗ ${esc(S.tasksErr)}</div>
+          <div class="upload-card-file">${esc(S.tasksFname)}</div>`
+          :`<div class="upload-card-status" style="color:var(--light-gray)">Drop CSV or click to browse</div>`}
+      </div>
+
+      <!-- Schedule CSV -->
+      <div class="upload-card ${S.schedOk?'loaded':S.schedErr?'error':''}">
+        <input type="file" accept=".csv" onchange="if(this.files[0])handleSchedFile(this.files[0])">
+        <div class="upload-card-icon">${S.schedOk?'✅':'📅'}</div>
+        <div class="upload-card-title">Schedule Sheet</div>
+        <div class="upload-card-desc">CSV with open slots: handyperson, start time, end time</div>
+        ${S.schedOk?`<div class="upload-card-status ok">✓ ${S.schedRows} slots loaded (${DATE_RANGE[0]} to ${DATE_RANGE[1]})</div>
+          <div class="upload-card-file">${esc(S.schedFname)}</div>`
+          :S.schedErr?`<div class="upload-card-status err">✗ ${esc(S.schedErr)}</div>
+          <div class="upload-card-file">${esc(S.schedFname)}</div>`
+          :`<div class="upload-card-status" style="color:var(--light-gray)">Drop CSV or click to browse</div>`}
+      </div>
+    </div>
+
+    <button class="upload-go" onclick="startPlanner()" ${bothOk?'':'disabled'}>
+      ${bothOk?'Launch Planner →':'Upload Both Files to Continue'}
+    </button>
+
+    <div class="upload-hint">
+      <strong>Tasks CSV columns:</strong> Handyman Name, Manager Name, StreetAddress, Title, Description, Status, PriorityLevel, ActiveMember, City, ZipCode<br>
+      <strong>Schedule CSV columns:</strong> Handyperson, Manager, Start, End<br>
+      <span style="color:var(--muted-teal)">Column names are matched flexibly — exact headers not required.</span>
+    </div>
+  </div>`;
+}
+
+function startPlanner(){
+  if(!S.tasksOk||!S.schedOk) return;
+  processData();
+  S.step='select';
+  R();
+}
+function goUpload(){
+  S.step='upload';S.home=null;S.tasks=new Set();S.plan=null;
+  S.showBooked=false;R();
+}
+function goSelect(){
+  S.home=null;S.tasks=new Set();S.plan=null;S.step='select';
+  S.selectedWeek='';S.filterMonth='';R();
+}
+
+/* ── PROGRESS BAR ── */
+function renderProgress(){
+  const steps=['select','preferences','results','summary'];
+  const labels=['Select Home','Preferences','Review Plan','Confirmed'];
+  const ci=steps.indexOf(S.step);
+  return `<div class="progress-bar">${steps.map((s,i)=>`<div class="prog-step ${s===S.step?'active':i<ci?'done':''}">${i+1}. ${labels[i]}</div>`).join('')}</div>`;
+}
+
+function renderStep(){
+  if(S.step==='select')return renderSelect();
+  if(S.step==='preferences')return renderPreferences();
+  if(S.step==='results')return renderResults();
+  if(S.step==='summary')return renderSummary();
+  return '';
+}
+
+/* ═══════════════════════════════════════════════════════
+   STEP 1 — SELECT HOME
+   ═══════════════════════════════════════════════════════ */
+function renderSelect(){
+  let homes=HOMES;
+  if(S.search){const q=S.search.toLowerCase();homes=homes.filter(h=>h.address.toLowerCase().includes(q)||h.city.toLowerCase().includes(q)||h.handyman.toLowerCase().includes(q)||h.manager.toLowerCase().includes(q)||h.tasks.some(t=>t.title.toLowerCase().includes(q)));}
+  if(S.filterStatus!=='all')homes=homes.filter(h=>h.tasks.some(t=>t.status===S.filterStatus));
+  if(S.filterHandyman)homes=homes.filter(h=>h.handyman===S.filterHandyman);
+  if(S.filterManager)homes=homes.filter(h=>h.manager===S.filterManager);
+  const tt=homes.reduce((s,h)=>s+h.tasks.length,0);
+
+  return `<div>
+    <h2 class="page-title">Select a Member Home</h2>
+    <p class="page-desc">Choose a home with outstanding tasks to create a booking plan.</p>
+    <div class="filters-bar">
+      <input type="text" class="search-input" placeholder="Search address, city, handyman, or task..." value="${esc(S.search)}" id="searchInput">
+      <select class="filter-select" onchange="S.filterHandyman=this.value;R()">
+        <option value="">All Handymen (${HANDYMEN.length})</option>
+        ${HANDYMEN.map(h=>`<option value="${esc(h)}" ${S.filterHandyman===h?'selected':''}>${esc(h)}</option>`).join('')}
+      </select>
+      <select class="filter-select" onchange="S.filterManager=this.value;R()">
+        <option value="">All Managers (${MANAGERS.length})</option>
+        ${MANAGERS.map(m=>`<option value="${esc(m)}" ${S.filterManager===m?'selected':''}>${esc(m)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      ${['all','todo','inProgress'].map(s=>`<button class="filter-pill ${S.filterStatus===s?'active':''}" onclick="S.filterStatus='${s}';R()">${s==='all'?'All':s==='todo'?'To Do':'In Progress'}</button>`).join('')}
+    </div>
+    <div class="count-label">${homes.length} homes · ${tt} tasks</div>
+    <div class="card-grid">${homes.map((h,i)=>renderHomeCard(h,i)).join('')}</div>
+  </div>`;
+}
+
+function renderHomeCard(h,idx){
+  const has=!!SCHEDULE[h.handyman];
+  const todo=h.tasks.filter(t=>t.status==='todo').length;
+  const ip=h.tasks.filter(t=>t.status==='inProgress').length;
+  const totalEst=h.tasks.reduce((s,t)=>s+estimateMinutes(t.title,t.description),0);
+  return `<div class="home-card ${has?'':'disabled'}" onclick="${has?`selectHome(${idx})`:''}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="card-addr">${esc(h.address)}</div><div class="card-city">${h.city?h.city+', CA '+h.zip:''}</div></div>
+      <span class="badge badge-count">${h.tasks.length} tasks</span>
+    </div>
+    <div class="card-meta">🔧 ${esc(h.handyman)} · 👤 ${esc(h.manager)}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      ${todo?`<span class="badge badge-todo">${todo} To Do</span>`:''}
+      ${ip?`<span class="badge badge-ip">${ip} In Progress</span>`:''}
+      <span class="badge badge-est">~${fmtEst(totalEst)} est.</span>
+    </div>
+    ${!has?'<div style="font-size:10px;color:var(--red);margin-top:6px;font-weight:600">No schedule available for this handyman</div>':''}
+    <div style="margin-top:8px;border-top:1px solid #E8EDEE;padding-top:7px">
+      ${h.tasks.slice(0,3).map(t=>`<div style="font-size:10px;color:var(--gray);padding:2px 0;display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="task-dot ${t.status==='todo'?'dot-todo':'dot-ip'}"></span>${esc(t.title)}<span style="color:var(--light-gray);margin-left:auto;flex-shrink:0">~${fmtEst(estimateMinutes(t.title,t.description))}</span></div>`).join('')}
+      ${h.tasks.length>3?`<div style="font-size:9px;color:var(--light-gray);margin-top:2px">+${h.tasks.length-3} more</div>`:''}
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   STEP 2 — PREFERENCES
+   ═══════════════════════════════════════════════════════ */
+function renderPreferences(){
+  const h=S.home;if(!h)return'';
+  const nt=S.tasks.size;
+  const selTasks=h.tasks.filter(t=>S.tasks.has(t.title));
+  const totalEst=selTasks.reduce((s,t)=>s+estimateMinutes(t.title,t.description),0);
+  const nv=S.mode==='auto'?Math.ceil(totalEst/105):selTasks.length;
+  const nd=Math.ceil(nv/4);
+
+  const hs=SCHEDULE[h.handyman]||{};
+  let availDates=Object.entries(hs)
+    .filter(([dt,info])=>S.prefDays.has(info.dow)&&info.slots.some(([s,e])=>s>=S.prefStart&&e<=S.prefEnd))
+    .map(([dt,info])=>({date:dt,dow:info.dow,slotCount:info.slots.filter(([s,e])=>s>=S.prefStart&&e<=S.prefEnd).length}))
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  if(S.filterDateFrom)availDates=availDates.filter(d=>d.date>=S.filterDateFrom);
+  if(S.filterDateTo)availDates=availDates.filter(d=>d.date<=S.filterDateTo);
+
+  const months=[...new Set(availDates.map(d=>getMonth(d.date)))].sort();
+  const activeMonth=S.filterMonth&&months.includes(S.filterMonth)?S.filterMonth:(months[0]||'');
+  const monthDates=availDates.filter(d=>getMonth(d.date)===activeMonth);
+  const weeks={};
+  monthDates.forEach(d=>{const w=getWeekOf(d.date);if(!weeks[w])weeks[w]={start:w,dates:[],totalSlots:0};weeks[w].dates.push(d);weeks[w].totalSlots+=d.slotCount});
+  const weekList=Object.values(weeks).sort((a,b)=>a.start.localeCompare(b.start));
+
+  return `<div>
+    <h2 class="page-title">${esc(h.address)}</h2>
+    <p class="page-desc">${h.city?h.city+', CA '+h.zip+' · ':''} 🔧 ${esc(h.handyman)} · 👤 ${esc(h.manager)}</p>
+    <div class="two-col" style="margin-top:18px">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="margin:0">Select Tasks</h3>
+          <div style="display:flex;gap:6px">
+            <button class="filter-pill" style="font-size:10px;padding:3px 8px" onclick="selAll()">All</button>
+            <button class="filter-pill" style="font-size:10px;padding:3px 8px" onclick="clrAll()">Clear</button>
+          </div>
+        </div>
+        <div class="task-list">${h.tasks.map(t=>{
+          const sel=S.tasks.has(t.title);
+          const est=estimateMinutes(t.title,t.description);
+          const isTodo=t.status==='todo';
+          return `<div class="task-item ${sel?'selected':''}" onclick="togTask('${esc(t.title,true)}')">
+            <div style="display:flex;align-items:flex-start;gap:10px">
+              <div class="chk ${sel?'on':''}"></div>
+              <div style="flex:1">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:3px">
+                  <span class="task-title">${esc(t.title)}</span>
+                  <span class="badge ${isTodo?'badge-todo':'badge-ip'}" style="flex-shrink:0">${isTodo?'To Do':'In Progress'}</span>
+                </div>
+                ${t.description?`<div class="task-desc">${esc(t.description)}</div>`:''}
+                <div class="task-est">⏱ ~${fmtEst(est)} estimated${t.priority>=2?' · <span style="color:var(--red)">Urgent</span>':t.priority===1?' · <span style="color:#b8860b">High Priority</span>':''}</div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}</div>
+      </div>
+      <div>
+        <div class="panel" style="margin-bottom:14px">
+          <h3>Day Preferences</h3>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">${DAYS.map(d=>`<button class="day-btn ${S.prefDays.has(d)?'active':''}" onclick="togDay('${d}')">${d.slice(0,3)}</button>`).join('')}</div>
+        </div>
+        <div class="panel" style="margin-bottom:14px">
+          <h3>Time Window</h3>
+          <div style="display:flex;gap:14px;align-items:center">
+            <div><label style="display:block;font-size:10px;color:var(--gray);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">From</label>
+              <select class="filter-select" onchange="S.prefStart=this.value;R()">${['08:30','09:00','10:00','10:30','11:00','12:00','13:00'].map(v=>`<option value="${v}" ${v===S.prefStart?'selected':''}>${fmt(v)}</option>`).join('')}</select></div>
+            <span style="color:var(--light-gray);margin-top:18px">—</span>
+            <div><label style="display:block;font-size:10px;color:var(--gray);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">To</label>
+              <select class="filter-select" onchange="S.prefEnd=this.value;R()">${['12:00','13:00','14:00','15:00','16:00','17:00'].map(v=>`<option value="${v}" ${v===S.prefEnd?'selected':''}>${fmt(v)}</option>`).join('')}</select></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:14px">
+          <h3>Date Window <span style="font-size:11px;font-weight:400;color:var(--gray)">(optional)</span></h3>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="flex:1"><label style="display:block;font-size:10px;color:var(--gray);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">From</label>
+              <input type="date" class="filter-select" style="width:100%" value="${S.filterDateFrom}" min="${DATE_RANGE[0]}" max="${DATE_RANGE[1]}" onchange="S.filterDateFrom=this.value;R()"></div>
+            <span style="color:var(--light-gray);margin-top:18px">—</span>
+            <div style="flex:1"><label style="display:block;font-size:10px;color:var(--gray);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">To</label>
+              <input type="date" class="filter-select" style="width:100%" value="${S.filterDateTo}" min="${DATE_RANGE[0]}" max="${DATE_RANGE[1]}" onchange="S.filterDateTo=this.value;R()"></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:14px">
+          <h3>Estimation Mode</h3>
+          <div style="display:flex;gap:8px">
+            <button class="mode-btn ${S.mode==='auto'?'active':''}" onclick="S.mode='auto';R()"><div class="mode-label">Auto (by time est.)</div><div class="mode-sub">Groups tasks to fill 1.75h visits</div></button>
+            <button class="mode-btn ${S.mode==='manual'?'active':''}" onclick="S.mode='manual';R()"><div class="mode-label">1 task per visit</div><div class="mode-sub">Dedicated visit per task</div></button>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:14px;background:linear-gradient(135deg,var(--white),var(--tan))">
+          <h3>Estimation Summary</h3>
+          <div class="stat-grid">
+            <div class="stat-card"><div class="stat-val" style="color:var(--teal)">${nt}</div><div class="stat-label">Tasks</div></div>
+            <div class="stat-card"><div class="stat-val" style="color:var(--muted-teal)">${fmtEst(totalEst)}</div><div class="stat-label">Est. Work Time</div></div>
+            <div class="stat-card"><div class="stat-val" style="color:var(--bright-teal)">${nv}</div><div class="stat-label">Visits Needed</div></div>
+            <div class="stat-card"><div class="stat-val" style="color:var(--dark-teal)">${nd}</div><div class="stat-label">Days (min)</div></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:14px">
+          <h3>Available Dates <span style="font-size:11px;font-weight:400;color:var(--gray)">(${availDates.length} dates)</span></h3>
+          ${months.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${months.map(m=>`<button class="month-pill ${m===activeMonth?'active':''}" onclick="S.filterMonth='${m}';R()">${monthLabel(m)}</button>`).join('')}</div>`:''}
+          ${weekList.length?`<div style="font-size:11px;font-weight:600;color:var(--gray);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">Select by Week</div>
+          <div style="max-height:220px;overflow-y:auto">${weekList.map(w=>{
+            const wEnd=new Date(w.start+'T12:00:00');wEnd.setDate(wEnd.getDate()+4);const wEndStr=wEnd.toISOString().split('T')[0];
+            return `<div class="week-row ${S.selectedWeek===w.start?'selected':''}" onclick="S.selectedWeek=S.selectedWeek==='${w.start}'?'':'${w.start}';R()">
+              <div><div class="week-label">${dateLabel(w.start)} — ${dateLabel(wEndStr)}</div><div class="week-slots">${w.dates.length} days · ${w.totalSlots} open slots</div></div>
+              <span class="badge badge-count">${w.totalSlots} slots</span>
+            </div>`;}).join('')}</div>`:`<div style="font-size:12px;color:var(--gray);padding:16px 0;text-align:center">No available dates match your preferences</div>`}
+          ${S.selectedWeek&&weeks[S.selectedWeek]?`<div style="margin-top:12px;border-top:1px solid #E8EDEE;padding-top:12px">
+            <div style="font-size:11px;font-weight:600;color:var(--gray);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">Dates in selected week</div>
+            ${weeks[S.selectedWeek].dates.map(d=>`<div class="date-item"><div><div style="font-weight:600;color:var(--darkest-teal)">${dateLabelFull(d.date)}</div><div style="font-size:11px;color:var(--gray)">${d.slotCount} open slot${d.slotCount>1?'s':''}</div></div><span class="badge badge-count">${d.slotCount} slots</span></div>`).join('')}
+          </div>`:''}
+        </div>
+        <button class="btn-primary" style="margin-top:4px" onclick="genPlan()" ${nt===0||S.prefDays.size===0?'disabled':''}>Generate Booking Plan →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   STEP 3 — RESULTS
+   ═══════════════════════════════════════════════════════ */
+function renderResults(){
+  const p=S.plan;if(!p)return'';
+  return `<div>
+    <h2 class="page-title">Booking Plan</h2>
+    <p class="page-desc">${esc(p.home.address)} · 🔧 ${esc(p.handyman)}</p>
+    ${p.insufficientSlots?'<div class="warning-box" style="margin-top:14px">⚠️ Not enough available slots to cover all tasks. Consider expanding your day/time preferences, date window, or selecting fewer tasks.</div>':''}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0">
+      ${[{l:'Total Tasks',v:p.totalTasks,c:'var(--teal)'},{l:'Visits',v:p.totalVisits,c:'var(--muted-teal)'},{l:'Days Booked',v:p.days.length,c:'var(--bright-teal)'},{l:'Est. Work Time',v:fmtEst(p.totalEst),c:'var(--dark-teal)'}].map(s=>`<div class="stat-card" style="background:var(--white);border:1px solid #E0E7E8;border-radius:10px"><div class="stat-val" style="color:${s.c}">${s.v}</div><div class="stat-label">${s.l}</div></div>`).join('')}
+    </div>
+    ${p.days.map((day,di)=>`<div class="plan-day">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div><h3>${dateLabelFull(day.date)}</h3>
+          <span style="font-size:11px;color:var(--gray);font-weight:500">${day.visits.length} visit(s) · ${fmtEst(day.visits.reduce((s,v)=>s+v.tasks.reduce((ss,t)=>ss+estimateMinutes(t.title,t.description),0),0))} estimated</span></div>
+        <span class="badge badge-day">Day ${di+1}</span>
+      </div>
+      ${day.visits.map((v,vi)=>`<div class="visit-row">
+        <div class="visit-time"><div class="vt-start">${fmt(v.slot[0])}</div><div class="vt-end">to ${fmt(v.slot[1])}</div><div style="font-size:9px;color:var(--light-gray);margin-top:3px;font-weight:600">Visit ${vi+1}</div></div>
+        <div class="visit-tasks">
+          ${v.tasks.map(t=>{const est=estimateMinutes(t.title,t.description);return `<div style="margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:7px"><span class="task-dot ${t.status==='todo'?'dot-todo':'dot-ip'}"></span><span style="font-size:13px;font-weight:600;color:var(--darkest-teal)">${esc(t.title)}</span><span class="badge ${t.status==='todo'?'badge-todo':'badge-ip'}">${t.status==='todo'?'To Do':'In Progress'}</span></div>
+            <div style="font-size:11px;color:var(--gray);margin-top:2px;padding-left:13px">⏱ ~${fmtEst(est)}</div>
+            ${t.description?`<div style="font-size:11px;color:var(--light-gray);margin-top:1px;padding-left:13px">${esc(t.description)}</div>`:''}
+          </div>`}).join('')}
+        </div>
+      </div>`).join('')}
+    </div>`).join('')}
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn-primary btn-outline" style="flex:1" onclick="S.step='preferences';R()">← Adjust Preferences</button>
+      <button class="btn-primary success" style="flex:2" onclick="confirmBook()">✓ Confirm Booking</button>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   STEP 4 — SUMMARY
+   ═══════════════════════════════════════════════════════ */
+function renderSummary(){
+  const p=S.plan;if(!p)return'';
+  return `<div style="max-width:600px;margin:36px auto;text-align:center">
+    <div class="confirm-circle">✓</div>
+    <h2 class="page-title" style="text-align:center">Booking Confirmed!</h2>
+    <p style="font-size:13px;color:var(--gray);margin:6px 0 28px">The plan for ${esc(p.home.address)} has been saved.</p>
+    <div class="panel" style="text-align:left;margin-bottom:28px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+        <div><div style="font-size:15px;font-weight:700;color:var(--darkest-teal)">${esc(p.home.address)}</div><div style="font-size:11px;color:var(--gray)">${esc(p.handyman)}</div></div>
+        <div style="font-size:12px;color:var(--teal);font-weight:700">${p.totalTasks} tasks · ${p.days.length} day(s)</div>
+      </div>
+      ${p.days.map(day=>`<div style="padding:8px 0;border-top:1px solid #E8EDEE">
+        <div style="font-size:12px;font-weight:600;color:var(--darkest-teal);margin-bottom:4px">${dateLabelFull(day.date)}</div>
+        ${day.visits.map(v=>`<div style="font-size:11px;color:var(--gray);padding-left:10px;margin-bottom:3px">${fmt(v.slot[0])} – ${fmt(v.slot[1])}: ${v.tasks.map(t=>esc(t.title)+' (~'+fmtEst(estimateMinutes(t.title,t.description))+')').join(', ')}</div>`).join('')}
+      </div>`).join('')}
+    </div>
+    <button class="btn-primary" onclick="goSelect()">Book Another Home →</button>
+  </div>`;
+}
+
+/* ── BOOKED PANEL ── */
+function renderBookedPanel(){
+  return `<div class="panel" style="margin-bottom:20px">
+    <h3>📋 Booked Plans</h3>
+    ${S.booked.map(p=>`<div class="booked-entry">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <strong>${esc(p.home.address)}</strong>
+        <span style="font-size:10px;color:var(--light-gray)">${new Date(p.bookedAt).toLocaleString()}</span>
+      </div>
+      <div style="font-size:12px;color:var(--gray)">${esc(p.handyman)} · ${p.totalTasks} tasks · ${p.days.length} day(s) · ~${fmtEst(p.totalEst)}</div>
+      ${p.days.map(day=>`<div style="margin-top:6px;padding-left:14px;border-left:2px solid #E0E7E8">
+        <div style="font-size:11px;color:var(--gray);font-weight:600">${dateLabelFull(day.date)}</div>
+        ${day.visits.map(v=>`<div style="font-size:11px;color:var(--gray);margin-top:3px">${fmt(v.slot[0])} – ${fmt(v.slot[1])}: ${v.tasks.map(t=>esc(t.title)).join(', ')}</div>`).join('')}
+      </div>`).join('')}
+    </div>`).join('')}
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ACTIONS
+   ═══════════════════════════════════════════════════════ */
+function selectHome(idx){
+  let homes=HOMES;
+  if(S.search){const q=S.search.toLowerCase();homes=homes.filter(h=>h.address.toLowerCase().includes(q)||h.city.toLowerCase().includes(q)||h.handyman.toLowerCase().includes(q)||h.manager.toLowerCase().includes(q)||h.tasks.some(t=>t.title.toLowerCase().includes(q)));}
+  if(S.filterStatus!=='all')homes=homes.filter(h=>h.tasks.some(t=>t.status===S.filterStatus));
+  if(S.filterHandyman)homes=homes.filter(h=>h.handyman===S.filterHandyman);
+  if(S.filterManager)homes=homes.filter(h=>h.manager===S.filterManager);
+  S.home=homes[idx];
+  S.tasks=new Set(S.home.tasks.map(t=>t.title));
+  S.selectedWeek='';S.filterMonth='';S.filterDateFrom='';S.filterDateTo='';
+  S.step='preferences';R();
+}
+function togTask(t){t=t.replace(/\\'/g,"'");S.tasks.has(t)?S.tasks.delete(t):S.tasks.add(t);R();}
+function selAll(){S.tasks=new Set(S.home.tasks.map(t=>t.title));R();}
+function clrAll(){S.tasks=new Set();R();}
+function togDay(d){S.prefDays.has(d)?S.prefDays.delete(d):S.prefDays.add(d);R();}
+
+function genPlan(){
+  const home=S.home;
+  const hs=SCHEDULE[home.handyman]||{};
+  const selTasks=home.tasks.filter(t=>S.tasks.has(t.title));
+  if(!selTasks.length)return;
+  selTasks.sort((a,b)=>(b.priority-a.priority)||(estimateMinutes(b.title,b.description)-estimateMinutes(a.title,a.description)));
+  const totalEst=selTasks.reduce((s,t)=>s+estimateMinutes(t.title,t.description),0);
+  let visitsNeeded=S.mode==='auto'?Math.ceil(totalEst/105):selTasks.length;
+
+  let availDates=Object.entries(hs)
+    .filter(([dt,info])=>{
+      if(!S.prefDays.has(info.dow))return false;
+      if(!info.slots.some(([s,e])=>s>=S.prefStart&&e<=S.prefEnd))return false;
+      if(S.filterDateFrom&&dt<S.filterDateFrom)return false;
+      if(S.filterDateTo&&dt>S.filterDateTo)return false;
+      return true;
+    })
+    .map(([dt,info])=>({date:dt,dayOfWeek:info.dow,slots:info.slots.filter(([s,e])=>s>=S.prefStart&&e<=S.prefEnd)}))
+    .sort((a,b)=>a.date.localeCompare(b.date));
+
+  if(S.selectedWeek){
+    const wEnd=new Date(S.selectedWeek+'T12:00:00');wEnd.setDate(wEnd.getDate()+6);const wEndStr=wEnd.toISOString().split('T')[0];
+    const inW=availDates.filter(d=>d.date>=S.selectedWeek&&d.date<=wEndStr);
+    const outW=availDates.filter(d=>d.date<S.selectedWeek||d.date>wEndStr);
+    availDates=[...inW,...outW];
+  }
+
+  const plan=[];let remaining=visitsNeeded;let tIdx=0;
+  for(const di of availDates){
+    if(remaining<=0)break;
+    const maxV=Math.min(4,di.slots.length,remaining);
+    if(maxV>0){
+      const daySlots=di.slots.slice(0,maxV);const dayVisits=[];
+      for(let i=0;i<maxV&&tIdx<selTasks.length;i++){
+        const vt=[];
+        if(S.mode==='auto'){
+          let timeLeft=105;
+          while(tIdx<selTasks.length&&timeLeft>=estimateMinutes(selTasks[tIdx].title,selTasks[tIdx].description)*0.6){
+            vt.push(selTasks[tIdx]);timeLeft-=estimateMinutes(selTasks[tIdx].title,selTasks[tIdx].description);tIdx++;
+            if(timeLeft<=0)break;
+          }
+          if(!vt.length&&tIdx<selTasks.length)vt.push(selTasks[tIdx++]);
+        }else{vt.push(selTasks[tIdx++]);}
+        dayVisits.push({slot:daySlots[i],tasks:vt});
+      }
+      plan.push({date:di.date,dayOfWeek:di.dayOfWeek,visits:dayVisits});remaining-=maxV;
+    }
+  }
+
+  S.plan={home,handyman:home.handyman,totalTasks:selTasks.length,totalVisits:visitsNeeded,totalEst,days:plan,allTasksCovered:tIdx>=selTasks.length,insufficientSlots:remaining>0};
+  S.step='results';R();
+}
+
+function confirmBook(){
+  if(S.plan){S.booked.push({...S.plan,bookedAt:new Date().toISOString()});S.step='summary';R();}
+}
+
+function bindEvt(){
+  const si=document.getElementById('searchInput');
+  if(si){const pos=si.value.length;si.addEventListener('input',function(){S.search=this.value;R()});si.focus();si.setSelectionRange(pos,pos);}
+}
+
+// Initialize
+R();
+
+</script>
+</body>
+</html>
