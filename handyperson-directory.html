@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Honey Homes · Handyperson Directory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Serif+4:wght@400;600&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --dark-teal:#014044;--teal:#19949E;--bright-teal:#1CACB8;
+  --muted-teal:#14747C;--darkest-teal:#003336;
+  --tan:#F9F6F4;--blue-tint:#EBF4F5;
+  --gray:#6A7677;--light-gray:#9BA7A8;
+  --blue:#C0E4EA;--yellow:#FDC30F;--pink:#F281AB;--red:#D44027;
+  --white:#FFFFFF;--off-white:#FAFBFB;
+  --purple:#7C3AED;--purple-light:#EDE9FE;
+  --orange:#D97706;--orange-light:#FEF3C7;
+  --font:'Source Sans 3',sans-serif;
+  --serif:'Source Serif 4',Georgia,serif;
+}
+body{background:var(--tan);color:var(--dark-teal);font-family:var(--font);min-height:100vh;-webkit-font-smoothing:antialiased}
+button{font-family:var(--font);cursor:pointer;border:none;background:none}
+select,input{font-family:var(--font)}
+::selection{background:var(--bright-teal);color:#fff}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--light-gray);border-radius:3px}
+
+/* ── HEADER ── */
+.header{background:var(--dark-teal);padding:0 32px;height:64px;display:flex;align-items:center;gap:14px}
+.logo-icon svg{width:36px;height:36px}
+.logo-text{font-size:20px;font-weight:700;color:var(--white);letter-spacing:-0.01em}
+.logo-sub{font-size:20px;font-weight:400;color:var(--teal);letter-spacing:-0.01em;margin-left:4px}
+
+/* ── MAIN LAYOUT ── */
+.main{max-width:1400px;margin:0 auto;padding:28px 32px 80px}
+
+/* ── SEARCH ── */
+.search-wrap{position:relative;margin-bottom:16px}
+.search-icon{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:var(--light-gray);pointer-events:none}
+.search-input{width:100%;padding:14px 18px 14px 48px;border-radius:12px;border:1.5px solid #D4E0E1;background:var(--white);color:var(--dark-teal);font-size:15px;outline:none;transition:border-color 0.15s;box-shadow:0 1px 4px rgba(0,51,54,0.04)}
+.search-input:focus{border-color:var(--teal)}
+.search-input::placeholder{color:var(--light-gray)}
+
+/* ── FILTERS ── */
+.filters-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.filter-select{padding:9px 14px;border-radius:9px;border:1.5px solid #D4E0E1;background:var(--white);color:var(--dark-teal);font-size:13px;font-weight:500;outline:none;cursor:pointer;min-width:140px;transition:border-color 0.15s}
+.filter-select:focus{border-color:var(--teal)}
+.filter-select.active{border-color:var(--teal);color:var(--teal);font-weight:600}
+.filter-select-wide{min-width:260px}
+
+/* ── ACTIVE FILTERS ── */
+.active-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;min-height:28px}
+.filter-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--teal);color:#fff;font-size:12px;font-weight:600}
+.filter-chip-x{cursor:pointer;opacity:0.8;font-size:14px;line-height:1;margin-left:2px}
+.filter-chip-x:hover{opacity:1}
+
+/* ── COUNT ── */
+.count-label{font-size:13px;color:var(--gray);font-weight:500;margin-bottom:18px}
+
+/* ── CARD GRID ── */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
+@media(max-width:860px){.card-grid{grid-template-columns:1fr}}
+
+/* ── HP CARD ── */
+.hp-card{background:var(--white);border-radius:14px;border:1.5px solid #E0E7E8;padding:22px;box-shadow:0 1px 4px rgba(0,51,54,0.05);transition:box-shadow 0.15s,border-color 0.15s}
+.hp-card:hover{border-color:#b8d4d6;box-shadow:0 4px 16px rgba(25,148,158,0.08)}
+
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.hp-name{font-size:19px;font-weight:700;color:var(--darkest-teal);line-height:1.2}
+.equip-badges{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;margin-left:10px;flex-shrink:0}
+.equip-badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:0.04em}
+.badge-roof{background:#FEF2F0;color:#C0392B;border:1px solid #F5C6C0}
+.badge-ladder{background:#EBF4F5;color:var(--muted-teal);border:1px solid #B8D8DB}
+.badge-truck{background:#FEF9E7;color:#856404;border:1px solid #F9D874}
+
+.hp-meta{font-size:12px;color:var(--gray);margin-bottom:6px;line-height:1.6}
+.hp-meta .label{font-weight:600;color:var(--teal)}
+.hp-region{font-size:12px;color:var(--gray);margin-bottom:12px}
+.hp-region .label{font-weight:600;color:var(--dark-teal)}
+
+/* ── SECTION ── */
+.section{margin-top:14px}
+.section-title{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--light-gray);margin-bottom:7px}
+.pills{display:flex;flex-wrap:wrap;gap:5px}
+
+/* ── PILLS ── */
+.pill{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.pill-specialty{border:1px solid #A8D5DA;color:var(--muted-teal);background:#F0F8F9}
+.pill-tool{border:1px solid #C4B5FD;color:var(--purple);background:var(--purple-light)}
+.pill-cert{border:1px solid #A8D5DA;color:var(--muted-teal);background:#F0F8F9}
+.pill-none{border:1px solid #F9D874;color:var(--orange);background:var(--orange-light);font-weight:600}
+
+/* ── UPLOAD SCREEN ── */
+.upload-page{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 64px);padding:40px 24px}
+.upload-container{max-width:600px;width:100%;text-align:center}
+.upload-title{font-family:var(--serif);font-size:30px;font-weight:600;color:var(--darkest-teal);margin-bottom:8px}
+.upload-desc{font-size:14px;color:var(--gray);margin-bottom:32px;line-height:1.6}
+.upload-card{background:var(--white);border:2px dashed #D4E0E1;border-radius:14px;padding:32px 24px;text-align:center;transition:all 0.2s;position:relative;cursor:pointer;margin-bottom:24px}
+.upload-card:hover{border-color:var(--bright-teal);background:var(--blue-tint)}
+.upload-card.loaded{border:2px solid var(--teal);background:var(--blue-tint)}
+.upload-card.error{border:2px solid var(--red);background:#FEF2F0}
+.upload-card input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-card-icon{font-size:40px;margin-bottom:12px}
+.upload-card-title{font-size:15px;font-weight:700;color:var(--darkest-teal);margin-bottom:4px}
+.upload-card-desc{font-size:12px;color:var(--gray);line-height:1.5}
+.upload-status{font-size:12px;font-weight:600;margin-top:10px}
+.upload-status.ok{color:var(--teal)}
+.upload-status.err{color:var(--red)}
+.upload-file{font-size:10px;color:var(--light-gray);margin-top:4px;word-break:break-all}
+.upload-go{padding:14px 48px;border-radius:10px;border:none;background:var(--teal);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.15s}
+.upload-go:hover{background:var(--muted-teal)}
+.upload-go:disabled{background:#C5CDCE;cursor:not-allowed}
+.upload-hint{margin-top:24px;font-size:11px;color:var(--light-gray);line-height:1.8;text-align:left;background:var(--white);border-radius:10px;padding:14px 18px;border:1px solid #E0E7E8}
+.upload-hint strong{color:var(--dark-teal)}
+
+.demo-btn{margin-top:14px;font-size:12px;color:var(--teal);font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none}
+.demo-btn:hover{color:var(--muted-teal)}
+
+/* ── NEW DATA BTN ── */
+.new-data-btn{position:fixed;bottom:28px;right:28px;padding:10px 18px;border-radius:9px;background:var(--white);border:1.5px solid #D4E0E1;color:var(--muted-teal);font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,51,54,0.08);transition:all 0.15s;cursor:pointer}
+.new-data-btn:hover{border-color:var(--teal);color:var(--teal)}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:60px 24px;color:var(--light-gray)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-text{font-size:15px;font-weight:600;color:var(--gray)}
+.empty-sub{font-size:13px;margin-top:4px}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeIn 0.25s ease-out}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ═══════════════════════════════════════════════════════
+   HONEY HOMES HANDYPERSON DIRECTORY
+   ═══════════════════════════════════════════════════════ */
+
+const LOGO = `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M20 4L4 18h4v16h24V18h4L20 4z" stroke="#19949E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M16 26c0 2.2 1.8 4 4 4s4-1.8 4-4" stroke="#19949E" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+</svg>`;
+
+/* ── GLOBAL DATA ── */
+let PEOPLE = [];
+let ALL_MANAGERS = [], ALL_REGIONS = [], ALL_SPECIALTIES = [], ALL_CERTS = [];
+
+/* ── STATE ── */
+const S = {
+  step: 'upload',
+  file: null, fileOk: false, fileErr: '', fileName: '', fileRows: 0,
+  search: '',
+  filterManager: '',
+  filterRegion: '',
+  filterSpecialty: '',
+  filterCert: '',
+};
+
+/* ── HELPERS ── */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function splitList(s) {
+  if (!s) return [];
+  return s.split(/[|;,]/).map(x => x.trim()).filter(Boolean);
+}
+
+/* ── CSV PARSING ── */
+function parseCSV(text) {
+  const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+  if (result.errors.length > 5) throw new Error('CSV has too many parsing errors');
+  const rows = result.data;
+  if (!rows.length) throw new Error('No data rows found');
+
+  const cols = Object.keys(rows[0]);
+  const find = (patterns) => cols.find(c => patterns.some(p => c.toLowerCase().replace(/[\s_-]/g,'').includes(p.toLowerCase().replace(/[\s_-]/g,''))));
+
+  const cName        = find(['Name','Handyperson','Handyman']) || cols[0];
+  const cManager     = find(['Manager']) || '';
+  const cExperience  = find(['Experience','Years','Exp']) || '';
+  const cCity        = find(['City','Location']) || '';
+  const cState       = find(['State']) || '';
+  const cRegion      = find(['Region','Area','Zone']) || '';
+  const cSpecialties = find(['Specialties','Trades','Skills','Specialty','Trade']) || '';
+  const cTools       = find(['Tools','Equipment','Tool']) || '';
+  const cCerts       = find(['Certifications','Licenses','Certs','Cert','License']) || '';
+  const cEquipment   = find(['Equip','Roof','Ladder','Truck','Badge','Badges']) || '';
+  // Some CSVs have separate columns
+  const cHasRoof   = find(['HasRoof','Roof']) || '';
+  const cHasLadder = find(['HasLadder','Ladder']) || '';
+  const cHasTruck  = find(['HasTruck','Truck']) || '';
+
+  const people = [];
+  for (const row of rows) {
+    const name = (row[cName] || '').trim();
+    if (!name) continue;
+
+    // Parse equipment badges — can be a combined "ROOF,LADDER" column OR separate bool columns
+    const equip = new Set();
+    if (cEquipment && row[cEquipment]) {
+      splitList(row[cEquipment]).forEach(e => equip.add(e.toUpperCase()));
+    }
+    if (cHasRoof && /true|yes|1/i.test(row[cHasRoof]||'')) equip.add('ROOF');
+    if (cHasLadder && /true|yes|1/i.test(row[cHasLadder]||'')) equip.add('LADDER');
+    if (cHasTruck && /true|yes|1/i.test(row[cHasTruck]||'')) equip.add('TRUCK');
+
+    people.push({
+      name,
+      manager:     cManager     ? (row[cManager]     || '').trim() : '',
+      experience:  cExperience  ? (row[cExperience]  || '').trim() : '',
+      city:        cCity        ? (row[cCity]        || '').trim() : '',
+      state:       cState       ? (row[cState]       || '').trim() : 'CA',
+      region:      cRegion      ? (row[cRegion]      || '').trim() : '',
+      specialties: cSpecialties ? splitList(row[cSpecialties]) : [],
+      tools:       cTools       ? splitList(row[cTools])       : [],
+      certs:       cCerts       ? splitList(row[cCerts])       : [],
+      equipment:   [...equip],
+    });
+  }
+
+  if (!people.length) throw new Error('No handyperson rows found — check column names');
+
+  // Build filter lists
+  ALL_MANAGERS   = [...new Set(people.map(p => p.manager).filter(Boolean))].sort();
+  ALL_REGIONS    = [...new Set(people.map(p => p.region).filter(Boolean))].sort();
+  ALL_SPECIALTIES = [...new Set(people.flatMap(p => p.specialties))].sort();
+  ALL_CERTS      = [...new Set(people.flatMap(p => p.certs).filter(c => c && !/none/i.test(c)))].sort();
+
+  return people;
+}
+
+/* ── DEMO DATA ── */
+function loadDemo() {
+  const csv = `Name,Manager,Experience,City,State,Region,Specialties,Tools,Certifications,Equipment
+Aaron Beller,Cameron Henle,25+,Oakley,CA,,Plumbing|Electrical|Carpentry|Painting|Appliances|Irrigation|Irrigation Systems|Security System Install and Removal|Smart Homes|Automotive,Angle Grinder|Extension ladder|Leaf Blower|Paint Sprayer|Pressure Washer|Weed Whacker|Router|planer|Multi-tool,None of the above,
+Hector Chavez,Cameron Henle,10+,Martinez,CA,,Plumbing|Electrical|Carpentry|Painting,Extension ladder|Leaf Blower|Common power tools,None of the above,
+Jeremy Clift,Cameron Henle,10,Chico,CA,SFO/East Bay - Lamo,Plumbing|Electrical|Carpentry|Painting|Drywall finishing|Finish Carpentry,Angle Grinder|Pipe Cutter|Propane Torch/Soldering Kit,None of the above,ROOF|LADDER|TRUCK
+Marcus Webb,Jordan Taylor,8,Oakland,CA,East Bay,Plumbing|Carpentry|Painting,Circular Saw|Drill|Level,EPA 608,
+Sandra Ruiz,Cameron Henle,15+,Fremont,CA,SFO/East Bay,Electrical|Painting|Drywall finishing|Tile work,Tile saw|Grout float|Extension ladder,None of the above,LADDER
+Devon Park,Jordan Taylor,5,San Jose,CA,South Bay,Carpentry|Painting|General Repairs,Nail gun|Sander|Jigsaw,None of the above,
+Luz Mendez,Cameron Henle,20+,Walnut Creek,CA,East Bay,Plumbing|Electrical|HVAC|Carpentry|Appliances,Multi-meter|Pipe wrench|Wire stripper,EPA 608|OSHA 10,TRUCK
+Tom Nguyen,Jordan Taylor,3,Sacramento,CA,Sacramento,Painting|General Repairs|Cleaning,Paint roller|Drop cloth,None of the above,
+Priya Sharma,Cameron Henle,12,Berkeley,CA,SFO/East Bay,Electrical|Smart Homes|Security System Install and Removal,Multi-meter|Fish tape|Wire stripper,OSHA 10,
+Felix Castro,Jordan Taylor,7,Stockton,CA,Central Valley,Plumbing|Carpentry|Irrigation,Pipe cutter|Shovel|Drill,None of the above,TRUCK`;
+  try {
+    PEOPLE = parseCSV(csv);
+    S.fileOk = true;
+    S.fileRows = PEOPLE.length;
+    S.fileName = 'demo-data.csv';
+    S.step = 'directory';
+    R();
+  } catch(e) {
+    alert('Demo load failed: ' + e.message);
+  }
+}
+
+/* ── FILE HANDLING ── */
+function handleFile(file) {
+  S.fileName = file.name;
+  S.fileOk = false;
+  S.fileErr = '';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      PEOPLE = parseCSV(e.target.result);
+      S.fileOk = true;
+      S.fileRows = PEOPLE.length;
+      S.step = 'directory';
+      R();
+    } catch(err) {
+      S.fileErr = err.message;
+      R();
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ── FILTER LOGIC ── */
+function getFiltered() {
+  let list = PEOPLE;
+  const q = S.search.toLowerCase();
+  if (q) {
+    list = list.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.manager.toLowerCase().includes(q) ||
+      p.city.toLowerCase().includes(q) ||
+      p.region.toLowerCase().includes(q) ||
+      p.specialties.some(s => s.toLowerCase().includes(q)) ||
+      p.tools.some(t => t.toLowerCase().includes(q)) ||
+      p.certs.some(c => c.toLowerCase().includes(q))
+    );
+  }
+  if (S.filterManager)   list = list.filter(p => p.manager === S.filterManager);
+  if (S.filterRegion)    list = list.filter(p => p.region === S.filterRegion);
+  if (S.filterSpecialty) list = list.filter(p => p.specialties.includes(S.filterSpecialty));
+  if (S.filterCert)      list = list.filter(p => p.certs.includes(S.filterCert));
+  return list;
+}
+
+/* ── RENDER ── */
+function R() {
+  document.getElementById('app').innerHTML = renderApp();
+  bindEvents();
+}
+
+function renderApp() {
+  if (S.step === 'upload') return renderHeader() + renderUpload();
+  return renderHeader() + renderDirectory();
+}
+
+function renderHeader() {
+  return `<header class="header">
+    <div class="logo-icon">${LOGO}</div>
+    <span class="logo-text">Honey Homes</span><span class="logo-sub">Handyperson Directory</span>
+  </header>`;
+}
+
+/* ── UPLOAD ── */
+function renderUpload() {
+  return `<div class="upload-page fade-in">
+    <div class="upload-container">
+      <h1 class="upload-title">Handyperson Directory</h1>
+      <p class="upload-desc">Upload a CSV of your handypeople to browse their skills, tools, and certifications.</p>
+
+      <div class="upload-card ${S.fileOk ? 'loaded' : S.fileErr ? 'error' : ''}">
+        <input type="file" accept=".csv" id="fileInput">
+        <div class="upload-card-icon">${S.fileOk ? '✅' : '📋'}</div>
+        <div class="upload-card-title">Handyperson CSV</div>
+        <div class="upload-card-desc">Columns: Name, Manager, Experience, City, Region, Specialties, Tools, Certifications, Equipment</div>
+        ${S.fileOk
+          ? `<div class="upload-status ok">✓ ${S.fileRows} handypeople loaded</div><div class="upload-file">${esc(S.fileName)}</div>`
+          : S.fileErr
+          ? `<div class="upload-status err">✗ ${esc(S.fileErr)}</div><div class="upload-file">${esc(S.fileName)}</div>`
+          : `<div class="upload-status" style="color:var(--light-gray)">Drop CSV or click to browse</div>`}
+      </div>
+
+      <button class="upload-go" onclick="S.step='directory';R()" ${S.fileOk ? '' : 'disabled'}>
+        ${S.fileOk ? 'Open Directory →' : 'Upload CSV to Continue'}
+      </button>
+
+      <div style="margin-top:12px">
+        <button class="demo-btn" onclick="loadDemo()">or load demo data</button>
+      </div>
+
+      <div class="upload-hint">
+        <strong>Required column:</strong> Name (or Handyperson / Handyman)<br>
+        <strong>Optional columns:</strong> Manager, Experience, City, State, Region,
+        Specialties, Tools, Certifications, Equipment<br>
+        <strong>Multi-value columns</strong> (Specialties, Tools, Certifications, Equipment)
+        can use <code>|</code> or <code>,</code> as separators.<br>
+        <strong>Equipment values:</strong> ROOF, LADDER, TRUCK — or use separate HasRoof / HasLadder / HasTruck (true/false) columns.
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── DIRECTORY ── */
+function renderDirectory() {
+  const filtered = getFiltered();
+  const activeFilters = [];
+  if (S.filterManager)   activeFilters.push({ label: `Manager: ${S.filterManager}`, key: 'filterManager' });
+  if (S.filterRegion)    activeFilters.push({ label: `Region: ${S.filterRegion}`, key: 'filterRegion' });
+  if (S.filterSpecialty) activeFilters.push({ label: `Specialty: ${S.filterSpecialty}`, key: 'filterSpecialty' });
+  if (S.filterCert)      activeFilters.push({ label: `Cert: ${S.filterCert}`, key: 'filterCert' });
+
+  return `<div class="main fade-in">
+    <!-- Search -->
+    <div class="search-wrap">
+      <span class="search-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </span>
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="Search by name, specialty, tool, region..."
+        value="${esc(S.search)}">
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-row">
+      <select class="filter-select ${S.filterManager ? 'active' : ''}" id="managerSelect">
+        <option value="">All Managers</option>
+        ${ALL_MANAGERS.map(m => `<option value="${esc(m)}" ${S.filterManager === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
+      </select>
+      <select class="filter-select ${S.filterRegion ? 'active' : ''}" id="regionSelect">
+        <option value="">All Regions</option>
+        ${ALL_REGIONS.map(r => `<option value="${esc(r)}" ${S.filterRegion === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}
+      </select>
+      <select class="filter-select filter-select-wide ${S.filterSpecialty ? 'active' : ''}" id="specialtySelect">
+        <option value="">All Specialties</option>
+        ${ALL_SPECIALTIES.map(s => `<option value="${esc(s)}" ${S.filterSpecialty === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+      </select>
+      <select class="filter-select ${S.filterCert ? 'active' : ''}" id="certSelect">
+        <option value="">All Certifications</option>
+        ${ALL_CERTS.map(c => `<option value="${esc(c)}" ${S.filterCert === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+      </select>
+    </div>
+
+    <!-- Active filter chips -->
+    ${activeFilters.length ? `<div class="active-filters">
+      ${activeFilters.map(f => `<span class="filter-chip">${esc(f.label)} <span class="filter-chip-x" onclick="S.${f.key}='';R()">×</span></span>`).join('')}
+    </div>` : '<div style="height:8px"></div>'}
+
+    <!-- Count -->
+    <div class="count-label">${filtered.length} of ${PEOPLE.length} handypeople</div>
+
+    <!-- Cards -->
+    ${filtered.length
+      ? `<div class="card-grid">${filtered.map(renderCard).join('')}</div>`
+      : `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No matches found</div><div class="empty-sub">Try adjusting your search or filters</div></div>`}
+
+    <button class="new-data-btn" onclick="goUpload()">↑ New Data</button>
+  </div>`;
+}
+
+function renderCard(p) {
+  const equipIcons = { ROOF: '🏠', LADDER: '🪜', TRUCK: '🚛' };
+  const equipBadgeClass = { ROOF: 'badge-roof', LADDER: 'badge-ladder', TRUCK: 'badge-truck' };
+
+  const equipBadges = p.equipment.length
+    ? `<div class="equip-badges">${p.equipment.map(e =>
+        `<span class="equip-badge ${equipBadgeClass[e] || 'badge-ladder'}">${equipIcons[e] || ''} ${esc(e)}</span>`
+      ).join('')}</div>`
+    : '';
+
+  const locationParts = [p.city, p.state || 'CA'].filter(Boolean);
+  const location = locationParts.join(', ');
+  const metaParts = [];
+  if (p.manager)    metaParts.push(`<span class="label">Manager:</span> ${esc(p.manager)}`);
+  if (p.experience) metaParts.push(`<span class="label">Experience:</span> ${esc(p.experience)}`);
+  if (location)     metaParts.push(esc(location));
+
+  const regionLine = p.region
+    ? `<div class="hp-region"><span class="label">Region:</span> ${esc(p.region)}</div>`
+    : '';
+
+  const specialtyPills = p.specialties.length
+    ? p.specialties.map(s => `<span class="pill pill-specialty">${esc(s)}</span>`).join('')
+    : '';
+
+  const toolPills = p.tools.length
+    ? p.tools.map(t => `<span class="pill pill-tool">${esc(t)}</span>`).join('')
+    : '';
+
+  const certPills = p.certs.length
+    ? p.certs.map(c => /none/i.test(c)
+        ? `<span class="pill pill-none">${esc(c)}</span>`
+        : `<span class="pill pill-cert">${esc(c)}</span>`
+      ).join('')
+    : `<span class="pill pill-none">None of the above</span>`;
+
+  return `<div class="hp-card">
+    <div class="card-top">
+      <div class="hp-name">${esc(p.name)}</div>
+      ${equipBadges}
+    </div>
+    ${metaParts.length ? `<div class="hp-meta">${metaParts.join(' · ')}</div>` : ''}
+    ${regionLine}
+    ${specialtyPills ? `<div class="section"><div class="section-title">Specialties &amp; Trades</div><div class="pills">${specialtyPills}</div></div>` : ''}
+    ${toolPills ? `<div class="section"><div class="section-title">Tools &amp; Equipment</div><div class="pills">${toolPills}</div></div>` : ''}
+    <div class="section"><div class="section-title">Licenses &amp; Certifications</div><div class="pills">${certPills}</div></div>
+  </div>`;
+}
+
+/* ── NAVIGATION ── */
+function goUpload() {
+  S.step = 'upload';
+  S.search = '';
+  S.filterManager = '';
+  S.filterRegion = '';
+  S.filterSpecialty = '';
+  S.filterCert = '';
+  R();
+}
+
+/* ── EVENT BINDING ── */
+function bindEvents() {
+  const fi = document.getElementById('fileInput');
+  if (fi) fi.addEventListener('change', function() { if (this.files[0]) handleFile(this.files[0]); });
+
+  const si = document.getElementById('searchInput');
+  if (si) {
+    si.addEventListener('input', function() { S.search = this.value; R(); });
+    si.addEventListener('keydown', function(e) { if (e.key === 'Escape') { S.search = ''; R(); } });
+  }
+
+  const ms = document.getElementById('managerSelect');
+  if (ms) ms.addEventListener('change', function() { S.filterManager = this.value; R(); });
+
+  const rs = document.getElementById('regionSelect');
+  if (rs) rs.addEventListener('change', function() { S.filterRegion = this.value; R(); });
+
+  const ss = document.getElementById('specialtySelect');
+  if (ss) ss.addEventListener('change', function() { S.filterSpecialty = this.value; R(); });
+
+  const cs = document.getElementById('certSelect');
+  if (cs) cs.addEventListener('change', function() { S.filterCert = this.value; R(); });
+}
+
+/* ── INIT ── */
+R();
+</script>
+</body>
+</html>
