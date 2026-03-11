@@ -120,6 +120,18 @@ select,input{font-family:var(--font)}
 .demo-btn{margin-top:14px;font-size:12px;color:var(--teal);font-weight:600;cursor:pointer;text-decoration:underline;background:none;border:none}
 .demo-btn:hover{color:var(--muted-teal)}
 
+/* ── EQUIP TOGGLES ── */
+.equip-toggles{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.equip-toggle{padding:9px 13px;border-radius:9px;border:1.5px solid #D4E0E1;background:var(--white);color:var(--dark-teal);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:4px}
+.equip-toggle:hover{border-color:var(--teal)}
+.equip-toggle.active-roof{background:#FEF2F0;border-color:#C0392B;color:#C0392B}
+.equip-toggle.active-ladder{background:#EBF4F5;border-color:var(--muted-teal);color:var(--muted-teal)}
+.equip-toggle.active-truck{background:#FEF9E7;border-color:#856404;color:#856404}
+
+/* ── SORT ── */
+.sort-row{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.sort-label{font-size:12px;color:var(--gray);font-weight:600;white-space:nowrap}
+
 /* ── NEW DATA BTN ── */
 .new-data-btn{position:fixed;bottom:28px;right:28px;padding:10px 18px;border-radius:9px;background:var(--white);border:1.5px solid #D4E0E1;color:var(--muted-teal);font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,51,54,0.08);transition:all 0.15s;cursor:pointer}
 .new-data-btn:hover{border-color:var(--teal);color:var(--teal)}
@@ -148,7 +160,7 @@ const LOGO = `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000
 
 /* ── GLOBAL DATA ── */
 let PEOPLE = [];
-let ALL_MANAGERS = [], ALL_REGIONS = [], ALL_SPECIALTIES = [], ALL_CERTS = [];
+let ALL_MANAGERS = [], ALL_REGIONS = [], ALL_SPECIALTIES = [], ALL_CERTS = [], ALL_TOOLS = [];
 
 /* ── STATE ── */
 const S = {
@@ -159,6 +171,9 @@ const S = {
   filterRegion: '',
   filterSpecialty: '',
   filterCert: '',
+  filterTool: '',
+  filterEquip: '',
+  sortBy: 'name',
 };
 
 /* ── HELPERS ── */
@@ -231,6 +246,7 @@ function parseCSV(text) {
   ALL_REGIONS    = [...new Set(people.map(p => p.region).filter(Boolean))].sort();
   ALL_SPECIALTIES = [...new Set(people.flatMap(p => p.specialties))].sort();
   ALL_CERTS      = [...new Set(people.flatMap(p => p.certs).filter(c => c && !/none/i.test(c)))].sort();
+  ALL_TOOLS      = [...new Set(people.flatMap(p => p.tools))].sort();
 
   return people;
 }
@@ -300,7 +316,24 @@ function getFiltered() {
   if (S.filterRegion)    list = list.filter(p => p.region === S.filterRegion);
   if (S.filterSpecialty) list = list.filter(p => p.specialties.includes(S.filterSpecialty));
   if (S.filterCert)      list = list.filter(p => p.certs.includes(S.filterCert));
+  if (S.filterTool)      list = list.filter(p => p.tools.includes(S.filterTool));
+  if (S.filterEquip)     list = list.filter(p => p.equipment.includes(S.filterEquip));
+
+  // Sort
+  if (S.sortBy === 'exp-desc') {
+    list = [...list].sort((a, b) => parseExp(b.experience) - parseExp(a.experience));
+  } else if (S.sortBy === 'exp-asc') {
+    list = [...list].sort((a, b) => parseExp(a.experience) - parseExp(b.experience));
+  } else {
+    list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+  }
   return list;
+}
+
+function parseExp(s) {
+  if (!s) return 0;
+  const n = parseInt(s.replace(/\D/g, '')) || 0;
+  return n;
 }
 
 /* ── RENDER ── */
@@ -368,6 +401,14 @@ function renderDirectory() {
   if (S.filterRegion)    activeFilters.push({ label: `Region: ${S.filterRegion}`, key: 'filterRegion' });
   if (S.filterSpecialty) activeFilters.push({ label: `Specialty: ${S.filterSpecialty}`, key: 'filterSpecialty' });
   if (S.filterCert)      activeFilters.push({ label: `Cert: ${S.filterCert}`, key: 'filterCert' });
+  if (S.filterTool)      activeFilters.push({ label: `Tool: ${S.filterTool}`, key: 'filterTool' });
+  if (S.filterEquip)     activeFilters.push({ label: `Equipment: ${S.filterEquip}`, key: 'filterEquip' });
+
+  const equipDefs = [
+    { key: 'ROOF',   icon: '🏠', cls: 'active-roof' },
+    { key: 'LADDER', icon: '🪜', cls: 'active-ladder' },
+    { key: 'TRUCK',  icon: '🚛', cls: 'active-truck' },
+  ];
 
   return `<div class="main fade-in">
     <!-- Search -->
@@ -396,9 +437,34 @@ function renderDirectory() {
         <option value="">All Specialties</option>
         ${ALL_SPECIALTIES.map(s => `<option value="${esc(s)}" ${S.filterSpecialty === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
       </select>
+      <select class="filter-select filter-select-wide ${S.filterTool ? 'active' : ''}" id="toolSelect">
+        <option value="">All Tools</option>
+        ${ALL_TOOLS.map(t => `<option value="${esc(t)}" ${S.filterTool === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+      </select>
       <select class="filter-select ${S.filterCert ? 'active' : ''}" id="certSelect">
         <option value="">All Certifications</option>
         ${ALL_CERTS.map(c => `<option value="${esc(c)}" ${S.filterCert === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+      </select>
+    </div>
+
+    <!-- Equipment toggles -->
+    <div class="filters-row" style="margin-bottom:12px">
+      <div class="equip-toggles">
+        ${equipDefs.map(e => `
+          <button class="equip-toggle ${S.filterEquip === e.key ? e.cls : ''}"
+            onclick="S.filterEquip = S.filterEquip === '${e.key}' ? '' : '${e.key}'; R()">
+            ${e.icon} ${e.key}
+          </button>`).join('')}
+      </div>
+    </div>
+
+    <!-- Sort + Active filter chips -->
+    <div class="sort-row">
+      <span class="sort-label">Sort by:</span>
+      <select class="filter-select" id="sortSelect" style="min-width:0">
+        <option value="name"     ${S.sortBy === 'name'     ? 'selected' : ''}>Name A–Z</option>
+        <option value="exp-desc" ${S.sortBy === 'exp-desc' ? 'selected' : ''}>Most Experience</option>
+        <option value="exp-asc"  ${S.sortBy === 'exp-asc'  ? 'selected' : ''}>Least Experience</option>
       </select>
     </div>
 
@@ -476,6 +542,9 @@ function goUpload() {
   S.filterRegion = '';
   S.filterSpecialty = '';
   S.filterCert = '';
+  S.filterTool = '';
+  S.filterEquip = '';
+  S.sortBy = 'name';
   R();
 }
 
@@ -501,6 +570,12 @@ function bindEvents() {
 
   const cs = document.getElementById('certSelect');
   if (cs) cs.addEventListener('change', function() { S.filterCert = this.value; R(); });
+
+  const ts = document.getElementById('toolSelect');
+  if (ts) ts.addEventListener('change', function() { S.filterTool = this.value; R(); });
+
+  const so = document.getElementById('sortSelect');
+  if (so) so.addEventListener('change', function() { S.sortBy = this.value; R(); });
 }
 
 /* ── INIT ── */
