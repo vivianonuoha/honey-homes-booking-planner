@@ -160,12 +160,14 @@ const LOGO = `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000
 
 /* ── GLOBAL DATA ── */
 let PEOPLE = [];
+let CERT_MAP = {}; // name (lowercase) → {hasRoof, hasLadder, region, manager, notes}
 let ALL_MANAGERS = [], ALL_REGIONS = [], ALL_SPECIALTIES = [], ALL_CERTS = [], ALL_TOOLS = [];
 
 /* ── STATE ── */
 const S = {
   step: 'upload',
   file: null, fileOk: false, fileErr: '', fileName: '', fileRows: 0,
+  certFileOk: false, certFileErr: '', certFileName: '', certRows: 0,
   search: '',
   filterManager: '',
   filterRegion: '',
@@ -194,36 +196,55 @@ function parseCSV(text) {
   if (!rows.length) throw new Error('No data rows found');
 
   const cols = Object.keys(rows[0]);
-  const find = (patterns) => cols.find(c => patterns.some(p => c.toLowerCase().replace(/[\s_-]/g,'').includes(p.toLowerCase().replace(/[\s_-]/g,''))));
+  // Strip punctuation/spaces for fuzzy column matching
+  const norm = s => s.toLowerCase().replace(/[\s_\-&?.'(),]/g,'');
+  const find = (patterns) => cols.find(c => patterns.some(p => norm(c).includes(norm(p))));
 
-  const cName        = find(['Name','Handyperson','Handyman']) || cols[0];
+  const cName        = find(['FirstLast','Name','Handyperson','Handyman']) || cols[0];
   const cManager     = find(['Manager']) || '';
   const cExperience  = find(['Experience','Years','Exp']) || '';
   const cCity        = find(['City','Location']) || '';
   const cState       = find(['State']) || '';
   const cRegion      = find(['Region','Area','Zone']) || '';
   const cSpecialties = find(['Specialties','Trades','Skills','Specialty','Trade']) || '';
-  const cTools       = find(['Tools','Equipment','Tool']) || '';
+  const cTools       = find(['Tools','Tool']) || '';
   const cCerts       = find(['Certifications','Licenses','Certs','Cert','License']) || '';
-  const cEquipment   = find(['Equip','Roof','Ladder','Truck','Badge','Badges']) || '';
-  // Some CSVs have separate columns
-  const cHasRoof   = find(['HasRoof','Roof']) || '';
-  const cHasLadder = find(['HasLadder','Ladder']) || '';
-  const cHasTruck  = find(['HasTruck','Truck']) || '';
+  // Class C license specialties (Google Form column: "If you possess a Class C license...")
+  const cClassCSpec  = find(['possess','ClassCSpec','LicenseSpecialties']) || '';
+  // Combined equipment badge column (old CSV format: "Equipment" = "ROOF|LADDER|TRUCK")
+  const cEquipment   = find(['Equipment','Badges','Badge','Equip']) || '';
+  // Boolean Yes/No equipment columns (Google Form format)
+  const cHasRoof     = find(['HasRoof','RoofCert','RoofTraining','Roof']) || '';
+  const cHasLadder   = find(['HasLadder','LadderSafety','LadderTraining','Ladder']) || '';
+  const cHasTruck    = find(['HasTruck','PickupTruck','OpenBed','Truck']) || '';
 
   const people = [];
   for (const row of rows) {
     const name = (row[cName] || '').trim();
     if (!name) continue;
 
-    // Parse equipment badges — can be a combined "ROOF,LADDER" column OR separate bool columns
+    // Parse equipment badges — combined "ROOF|LADDER" column OR separate Yes/No columns
     const equip = new Set();
-    if (cEquipment && row[cEquipment]) {
+    if (cEquipment && row[cEquipment] && !/^(yes|no|true|false)$/i.test((row[cEquipment]||'').trim())) {
       splitList(row[cEquipment]).forEach(e => equip.add(e.toUpperCase()));
     }
-    if (cHasRoof && /true|yes|1/i.test(row[cHasRoof]||'')) equip.add('ROOF');
-    if (cHasLadder && /true|yes|1/i.test(row[cHasLadder]||'')) equip.add('LADDER');
-    if (cHasTruck && /true|yes|1/i.test(row[cHasTruck]||'')) equip.add('TRUCK');
+    if (cHasRoof   && /yes|true|1/i.test(row[cHasRoof]   || '')) equip.add('ROOF');
+    if (cHasLadder && /yes|true|1/i.test(row[cHasLadder] || '')) equip.add('LADDER');
+    if (cHasTruck  && /yes|true|1/i.test(row[cHasTruck]  || '')) equip.add('TRUCK');
+
+    // Certifications — filter out "None of the above" placeholder
+    const rawCerts = cCerts ? splitList(row[cCerts]) : [];
+    const certs = rawCerts.filter(c => !/^none\s*of\s*the\s*above$/i.test(c.trim()));
+
+    // Class C license specialties — merge into specialties if substantive trade info
+    const classCRaw = cClassCSpec ? (row[cClassCSpec] || '').trim() : '';
+    const classCExtras = [];
+    if (classCRaw && !/^(n\/?a|none|driving|drive|it.?s\s*a\s*class|class\s*[abc]\s*(drivers?|license)|no\s*extensive)/i.test(classCRaw)) {
+      classCExtras.push(...splitList(classCRaw));
+    }
+
+    const baseSpecialties = cSpecialties ? splitList(row[cSpecialties]) : [];
+    const specialties = [...new Set([...baseSpecialties, ...classCExtras])];
 
     people.push({
       name,
@@ -232,23 +253,83 @@ function parseCSV(text) {
       city:        cCity        ? (row[cCity]        || '').trim() : '',
       state:       cState       ? (row[cState]       || '').trim() : 'CA',
       region:      cRegion      ? (row[cRegion]      || '').trim() : '',
-      specialties: cSpecialties ? splitList(row[cSpecialties]) : [],
-      tools:       cTools       ? splitList(row[cTools])       : [],
-      certs:       cCerts       ? splitList(row[cCerts])       : [],
+      specialties,
+      tools:       cTools       ? splitList(row[cTools])  : [],
+      certs,
       equipment:   [...equip],
+      notes: '',
     });
   }
 
   if (!people.length) throw new Error('No handyperson rows found — check column names');
 
   // Build filter lists
-  ALL_MANAGERS   = [...new Set(people.map(p => p.manager).filter(Boolean))].sort();
-  ALL_REGIONS    = [...new Set(people.map(p => p.region).filter(Boolean))].sort();
+  ALL_MANAGERS    = [...new Set(people.map(p => p.manager).filter(Boolean))].sort();
+  ALL_REGIONS     = [...new Set(people.map(p => p.region).filter(Boolean))].sort();
   ALL_SPECIALTIES = [...new Set(people.flatMap(p => p.specialties))].sort();
-  ALL_CERTS      = [...new Set(people.flatMap(p => p.certs).filter(c => c && !/none/i.test(c)))].sort();
-  ALL_TOOLS      = [...new Set(people.flatMap(p => p.tools))].sort();
+  ALL_CERTS       = [...new Set(people.flatMap(p => p.certs).filter(c => c && !/none/i.test(c)))].sort();
+  ALL_TOOLS       = [...new Set(people.flatMap(p => p.tools))].sort();
 
   return people;
+}
+
+/* ── CERT CSV PARSING ── */
+function parseCertCSV(text) {
+  const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+  const rows = result.data;
+  if (!rows.length) throw new Error('No rows found');
+
+  const cols = Object.keys(rows[0]);
+  const norm2 = s => s.toLowerCase().replace(/[\s_\-&?.'(),]/g,'');
+  const find2 = (patterns) => cols.find(c => patterns.some(p => norm2(c).includes(norm2(p))));
+
+  const cName    = find2(['Handyman','Name','FirstLast']) || cols[0];
+  const cRoof    = find2(['RoofCert','RoofStatus','RoofCertification','Roof']) || '';
+  const cLadder  = find2(['LadderCert','LadderStatus','LadderCertification','Ladder']) || '';
+  const cRegion  = find2(['Region','Area','Zone']) || '';
+  const cManager = find2(['Manager','FieldManager']) || '';
+  const cNotes   = find2(['Notes','Note']) || '';
+
+  const map = {};
+  for (const row of rows) {
+    const name = (row[cName] || '').trim();
+    if (!name) continue;
+    map[name.toLowerCase()] = {
+      hasRoof:   cRoof   ? /completed/i.test(row[cRoof]   || '') : null,
+      hasLadder: cLadder ? /completed/i.test(row[cLadder] || '') : null,
+      region:    cRegion  ? (row[cRegion]  || '').trim() : '',
+      manager:   cManager ? (row[cManager] || '').trim() : '',
+      notes:     cNotes   ? (row[cNotes]   || '').trim() : '',
+    };
+  }
+  if (!Object.keys(map).length) throw new Error('No handyperson rows found in cert file');
+  return map;
+}
+
+/* ── MERGE CERT DATA INTO PEOPLE ── */
+function applyMerge() {
+  if (!Object.keys(CERT_MAP).length) return;
+  for (const p of PEOPLE) {
+    const pNorm = p.name.toLowerCase();
+    // Try exact match first, then whitespace-normalized match
+    let cert = CERT_MAP[pNorm];
+    if (!cert) {
+      const pStripped = pNorm.replace(/\s+/g,'');
+      const found = Object.entries(CERT_MAP).find(([k]) => k.replace(/\s+/g,'') === pStripped);
+      cert = found ? found[1] : null;
+    }
+    if (!cert) continue;
+    if (cert.hasRoof === true)  p.equipment = [...new Set([...p.equipment, 'ROOF'])];
+    if (cert.hasRoof === false) p.equipment = p.equipment.filter(e => e !== 'ROOF');
+    if (cert.hasLadder === true)  p.equipment = [...new Set([...p.equipment, 'LADDER'])];
+    if (cert.hasLadder === false) p.equipment = p.equipment.filter(e => e !== 'LADDER');
+    if (cert.region)  p.region  = cert.region;
+    if (cert.manager) p.manager = cert.manager;
+    if (cert.notes)   p.notes   = cert.notes;
+  }
+  // Rebuild filter lists after merge
+  ALL_MANAGERS = [...new Set(PEOPLE.map(p => p.manager).filter(Boolean))].sort();
+  ALL_REGIONS  = [...new Set(PEOPLE.map(p => p.region).filter(Boolean))].sort();
 }
 
 /* ── DEMO DATA ── */
@@ -291,6 +372,25 @@ function handleFile(file) {
       R();
     } catch(err) {
       S.fileErr = err.message;
+      R();
+    }
+  };
+  reader.readAsText(file);
+}
+
+function handleCertFile(file) {
+  S.certFileName = file.name;
+  S.certFileOk = false;
+  S.certFileErr = '';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      CERT_MAP = parseCertCSV(e.target.result);
+      S.certFileOk = true;
+      S.certRows = Object.keys(CERT_MAP).length;
+      R();
+    } catch(err) {
+      S.certFileErr = err.message;
       R();
     }
   };
@@ -365,7 +465,7 @@ function renderUpload() {
         <input type="file" accept=".csv" id="fileInput">
         <div class="upload-card-icon">${S.fileOk ? '✅' : '📋'}</div>
         <div class="upload-card-title">Handyperson CSV</div>
-        <div class="upload-card-desc">Columns: Name, Manager, Experience, City, Region, Specialties, Tools, Certifications, Equipment</div>
+        <div class="upload-card-desc">Google Form export or CSV with columns: Name, Manager, Specialties, Tools, Certifications, Truck/Roof/Ladder</div>
         ${S.fileOk
           ? `<div class="upload-status ok">✓ ${S.fileRows} handypeople loaded</div><div class="upload-file">${esc(S.fileName)}</div>`
           : S.fileErr
@@ -373,7 +473,19 @@ function renderUpload() {
           : `<div class="upload-status" style="color:var(--light-gray)">Drop CSV or click to browse</div>`}
       </div>
 
-      <button class="upload-go" onclick="S.step='directory';R()" ${S.fileOk ? '' : 'disabled'}>
+      <div class="upload-card ${S.certFileOk ? 'loaded' : S.certFileErr ? 'error' : ''}" style="margin-top:12px">
+        <input type="file" accept=".csv" id="certFileInput">
+        <div class="upload-card-icon">${S.certFileOk ? '✅' : '🏅'}</div>
+        <div class="upload-card-title">Certification Tracker CSV <span style="font-size:10px;font-weight:500;color:var(--light-gray);margin-left:6px">optional</span></div>
+        <div class="upload-card-desc">Columns: Handyman, Roof Certification Status, Ladder Certification, Region, Field Manager, Notes</div>
+        ${S.certFileOk
+          ? `<div class="upload-status ok">✓ ${S.certRows} records loaded</div><div class="upload-file">${esc(S.certFileName)}</div>`
+          : S.certFileErr
+          ? `<div class="upload-status err">✗ ${esc(S.certFileErr)}</div><div class="upload-file">${esc(S.certFileName)}</div>`
+          : `<div class="upload-status" style="color:var(--light-gray)">Drop CSV or click to browse</div>`}
+      </div>
+
+      <button class="upload-go" onclick="applyMerge();S.step='directory';R()" ${S.fileOk ? '' : 'disabled'} style="margin-top:20px">
         ${S.fileOk ? 'Open Directory →' : 'Upload CSV to Continue'}
       </button>
 
@@ -382,12 +494,14 @@ function renderUpload() {
       </div>
 
       <div class="upload-hint">
-        <strong>Required column:</strong> Name (or Handyperson / Handyman)<br>
-        <strong>Optional columns:</strong> Manager, Experience, City, State, Region,
-        Specialties, Tools, Certifications, Equipment<br>
-        <strong>Multi-value columns</strong> (Specialties, Tools, Certifications, Equipment)
-        can use <code>|</code> or <code>,</code> as separators.<br>
-        <strong>Equipment values:</strong> ROOF, LADDER, TRUCK — or use separate HasRoof / HasLadder / HasTruck (true/false) columns.
+        <strong>Handyperson CSV</strong> — accepts Google Form exports or standard CSVs.<br>
+        Required: Name (or "First &amp; Last Name" / Handyperson)<br>
+        Optional: Manager (or "Field Manager"), Experience, City, State, Region, Specialties (or Trades), Tools, Certifications (or Licenses), Equipment<br>
+        Multi-value columns can use <code>|</code> or <code>,</code> as separators.<br>
+        Truck/Roof/Ladder can be a combined Equipment column (<code>ROOF|LADDER</code>) or separate Yes/No columns.<br><br>
+        <strong>Certification Tracker CSV</strong> (optional) — merges roof/ladder status, region &amp; manager by name.<br>
+        Columns: Handyman, Roof Certification Status, Ladder Certification, Region, Field Manager, Notes<br>
+        Values: <code>Completed</code> adds the badge; <code>N/A</code> / blank removes it.
       </div>
     </div>
   </div>`;
@@ -531,6 +645,7 @@ function renderCard(p) {
     ${specialtyPills ? `<div class="section"><div class="section-title">Specialties &amp; Trades</div><div class="pills">${specialtyPills}</div></div>` : ''}
     ${toolPills ? `<div class="section"><div class="section-title">Tools &amp; Equipment</div><div class="pills">${toolPills}</div></div>` : ''}
     <div class="section"><div class="section-title">Licenses &amp; Certifications</div><div class="pills">${certPills}</div></div>
+    ${p.notes ? `<div class="section"><div class="section-title">Notes</div><div style="font-size:12px;color:var(--gray);line-height:1.5">${esc(p.notes)}</div></div>` : ''}
   </div>`;
 }
 
@@ -545,6 +660,8 @@ function goUpload() {
   S.filterTool = '';
   S.filterEquip = '';
   S.sortBy = 'name';
+  CERT_MAP = {};
+  S.certFileOk = false; S.certFileErr = ''; S.certFileName = ''; S.certRows = 0;
   R();
 }
 
@@ -552,6 +669,9 @@ function goUpload() {
 function bindEvents() {
   const fi = document.getElementById('fileInput');
   if (fi) fi.addEventListener('change', function() { if (this.files[0]) handleFile(this.files[0]); });
+
+  const cfi = document.getElementById('certFileInput');
+  if (cfi) cfi.addEventListener('change', function() { if (this.files[0]) handleCertFile(this.files[0]); });
 
   const si = document.getElementById('searchInput');
   if (si) {
