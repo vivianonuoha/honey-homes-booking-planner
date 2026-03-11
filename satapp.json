@@ -1,0 +1,7 @@
+{
+  "name": "honey-homes-booking-bdba",
+  "type": "site",
+  "doppler_project": "honey-homes-booking-bdba",
+  "gemini_secret_name": "HONEY_HOMES_BOOKING_BDBA_GEMINI_API_KEY",
+  "google_sheets_sa_email": "satapp-google-sheet-access@honey-homes-mcp.iam.gserviceaccount.com"
+}
